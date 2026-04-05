@@ -1,7 +1,10 @@
 """
 ELZF-AI v5.0 - Complete Professional Emergency Landing Zone Finder
-INTEGRATED SYSTEM: Aircraft Control + Aircraft Selection + Sound + AI + Data Fusion + Predictive Analysis
+HELICOPTER SPECIALIZED VERSION
+INTEGRATED SYSTEM: Helicopter Control + Aircraft Selection + Sound + AI + Data Fusion + Predictive Analysis
+Anti-Gravity Cockpit 3D Effects + Holographic Display
 ALL FEATURES IN ONE FILE - NO EXTERNAL DEPENDENCIES
+PURE HELICOPTERS ONLY
 """
 
 import streamlit as st
@@ -16,12 +19,264 @@ from folium.plugins import MousePosition
 import wave
 import io
 import base64
+import math
 
 # ═══════════════════════════════════════════════════════════════
 # LOGGING SETUP
 # ═══════════════════════════════════════════════════════════════
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════
+# ANTI-GRAVITY COCKPIT 3D EFFECTS CSS
+# ═══════════════════════════════════════════════════════════════
+
+HOLOGRAPHIC_CSS = """
+<style>
+@keyframes hologram-flicker {
+    0%, 100% { text-shadow: 0 0 10px rgba(0, 255, 157, 0.8), 0 0 20px rgba(0, 212, 255, 0.6); }
+    50% { text-shadow: 0 0 15px rgba(0, 255, 157, 0.6), 0 0 25px rgba(0, 212, 255, 0.4); }
+}
+
+@keyframes rotor-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes cockpit-glow {
+    0%, 100% { box-shadow: inset 0 0 20px rgba(0, 255, 157, 0.3), 0 0 30px rgba(0, 212, 255, 0.2); }
+    50% { box-shadow: inset 0 0 30px rgba(0, 255, 157, 0.5), 0 0 40px rgba(0, 212, 255, 0.3); }
+}
+
+@keyframes pulse-altitude {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes gravity-float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+}
+
+.hologram {
+    font-family: 'Space Mono', monospace;
+    animation: hologram-flicker 3s infinite;
+    letter-spacing: 0.1em;
+    color: #00ff9d;
+    text-shadow: 0 0 10px rgba(0, 255, 157, 0.8);
+}
+
+.rotor-indicator {
+    animation: rotor-spin 2s linear infinite;
+    display: inline-block;
+    font-size: 48px;
+}
+
+.cockpit-panel {
+    background: linear-gradient(135deg, rgba(15, 21, 39, 0.95) 0%, rgba(20, 30, 50, 0.95) 100%);
+    border: 2px solid;
+    border-radius: 12px;
+    padding: 20px;
+    animation: cockpit-glow 3s infinite;
+    box-shadow: inset 0 0 20px rgba(0, 255, 157, 0.2);
+}
+
+.altitude-display {
+    animation: pulse-altitude 1s infinite;
+    font-size: 24px;
+    font-weight: 700;
+    color: #00ff9d;
+}
+
+.anti-gravity {
+    animation: gravity-float 4s ease-in-out infinite;
+}
+
+.neon-border {
+    border: 2px solid;
+    box-shadow: 0 0 10px currentColor, inset 0 0 10px currentColor;
+    border-radius: 8px;
+}
+
+.holographic-text {
+    background: linear-gradient(45deg, #00ff9d, #00d4ff, #00ff9d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    animation: hologram-flicker 2s infinite;
+}
+
+.rotor-status {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00ff9d 0%, rgba(0, 255, 157, 0.3) 100%);
+    animation: rotor-spin 1.5s linear infinite;
+    box-shadow: 0 0 10px #00ff9d, inset 0 0 5px #00ff9d;
+}
+
+.hover-zone {
+    background: radial-gradient(circle, rgba(0, 255, 157, 0.2), transparent);
+    border: 1px dashed #00ff9d;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.cockpit-readout {
+    font-family: 'Courier New', monospace;
+    color: #00ff9d;
+    background: rgba(0, 212, 255, 0.05);
+    border-left: 3px solid #00ff9d;
+    padding: 10px;
+    margin: 5px 0;
+    font-size: 12px;
+}
+
+.blade-sweep {
+    position: relative;
+    display: inline-block;
+    animation: rotor-spin 2s linear infinite;
+    transform-origin: center;
+}
+
+.g-force-indicator {
+    font-size: 14px;
+    font-weight: 700;
+    color: #00d4ff;
+    animation: pulse-altitude 0.5s infinite;
+}
+
+.vertical-descent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.descent-arrow {
+    font-size: 32px;
+    color: #00ff9d;
+    animation: gravity-float 2s ease-in-out infinite;
+}
+
+.cockpit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.grid-item {
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.altitude-analog {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #00ff9d;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, rgba(0, 255, 157, 0.1), transparent);
+    font-weight: 700;
+    color: #00ff9d;
+    font-size: 18px;
+}
+
+.heading-indicator {
+    width: 120px;
+    height: 120px;
+    border: 2px solid #00d4ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: conic-gradient(#00d4ff, #00ff9d, #00d4ff);
+    font-weight: 700;
+    color: #0f1527;
+    font-size: 14px;
+    animation: rotor-spin 20s linear infinite;
+}
+
+.speed-gauge {
+    width: 150px;
+    height: 80px;
+    background: linear-gradient(90deg, #ff3d71, #ffb800, #00ff9d);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #0f1527;
+    font-size: 16px;
+}
+
+@keyframes scan-line {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+}
+
+.radar-scan {
+    border: 2px solid #00ff9d;
+    border-radius: 50%;
+    width: 200px;
+    height: 200px;
+    position: relative;
+    background: radial-gradient(circle, rgba(0, 255, 157, 0.1), transparent);
+    margin: 0 auto;
+}
+
+.radar-scan::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, transparent, rgba(0, 255, 157, 0.2), transparent);
+    animation: scan-line 3s linear infinite;
+    border-radius: 50%;
+}
+
+.helicopter-status {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 255, 157, 0.05));
+    border: 2px solid #00d4ff;
+    border-radius: 12px;
+    margin: 10px 0;
+}
+
+.rotor-icon {
+    font-size: 48px;
+    animation: rotor-spin 1.5s linear infinite;
+}
+
+.hover-stable {
+    color: #00ff9d;
+    font-weight: 700;
+}
+
+.hover-unstable {
+    color: #ffb800;
+    font-weight: 700;
+}
+
+.hover-critical {
+    color: #ff3d71;
+    font-weight: 700;
+}
+</style>
+"""
 
 # ═══════════════════════════════════════════════════════════════
 # SOUND SYSTEM - PURE PYTHON (NO EXTERNAL FILES)
@@ -446,91 +701,11 @@ class EmergencyAlertSystem:
         return summary
 
 # ═══════════════════════════════════════════════════════════════
-# AIRCRAFT DATABASE WITH SPECIFICATIONS
+# HELICOPTER DATABASE WITH SPECIFICATIONS (ONLY HELICOPTERS)
 # ═══════════════════════════════════════════════════════════════
 
 AIRCRAFT_DATABASE = {
-    'Boeing 747 (Jumbo)': {
-        'emoji': '✈️',
-        'passengers': 600,
-        'crew': 15,
-        'weight': 412775,
-        'speed': 490,
-        'cruise_altitude': 45000,
-        'landing_distance': 3000,
-        'fuel_capacity': 238610,
-        'wingspan': 68.4,
-        'length': 70.7,
-        'description': 'Long-range wide-body aircraft',
-        'min_altitude': 8000,
-        'max_passengers': 700,
-        'category': 'Jumbo'
-    },
-    'Airbus A380': {
-        'emoji': '🛫',
-        'passengers': 853,
-        'crew': 20,
-        'weight': 575000,
-        'speed': 490,
-        'cruise_altitude': 43000,
-        'landing_distance': 3000,
-        'fuel_capacity': 323546,
-        'wingspan': 79.8,
-        'length': 73,
-        'description': 'Largest passenger airliner',
-        'min_altitude': 8000,
-        'max_passengers': 900,
-        'category': 'Jumbo'
-    },
-    'Boeing 787 Dreamliner': {
-        'emoji': '✈️',
-        'passengers': 242,
-        'crew': 10,
-        'weight': 242500,
-        'speed': 490,
-        'cruise_altitude': 43000,
-        'landing_distance': 2100,
-        'fuel_capacity': 126372,
-        'wingspan': 60.1,
-        'length': 56.7,
-        'description': 'Wide-body twin-engine jetliner',
-        'min_altitude': 6000,
-        'max_passengers': 330,
-        'category': 'Wide-Body'
-    },
-    'Airbus A320': {
-        'emoji': '🛬',
-        'passengers': 180,
-        'crew': 6,
-        'weight': 73500,
-        'speed': 460,
-        'cruise_altitude': 41000,
-        'landing_distance': 1500,
-        'fuel_capacity': 27200,
-        'wingspan': 35.8,
-        'length': 37.6,
-        'description': 'Narrow-body short-medium range',
-        'min_altitude': 4000,
-        'max_passengers': 220,
-        'category': 'Narrow-Body'
-    },
-    'Cessna 172': {
-        'emoji': '🛩️',
-        'passengers': 3,
-        'crew': 1,
-        'weight': 1157,
-        'speed': 122,
-        'cruise_altitude': 15000,
-        'landing_distance': 1200,
-        'fuel_capacity': 202,
-        'wingspan': 11,
-        'length': 8.6,
-        'description': 'Single-engine light aircraft',
-        'min_altitude': 1000,
-        'max_passengers': 4,
-        'category': 'Light'
-    },
-    'Bell 407 Helicopter': {
+    'Bell 407': {
         'emoji': '🚁',
         'passengers': 6,
         'crew': 1,
@@ -544,39 +719,175 @@ AIRCRAFT_DATABASE = {
         'description': 'Twin-engine utility helicopter',
         'min_altitude': 500,
         'max_passengers': 7,
-        'category': 'Helicopter'
+        'category': 'Helicopter',
+        'rotor_diameter': 11.0,
+        'vertical_capable': True,
+        'hover_time': 120,
+        'max_hover_altitude': 18000,
+        'empty_weight': 2860,
+        'service_ceiling': 20000,
+        'blade_count': 4,
     },
-    'Airbus A330': {
-        'emoji': '✈️',
-        'passengers': 335,
-        'crew': 12,
-        'weight': 242000,
-        'speed': 490,
-        'cruise_altitude': 43000,
-        'landing_distance': 2500,
-        'fuel_capacity': 139090,
-        'wingspan': 60.6,
-        'length': 63.7,
-        'description': 'Wide-body twin-engine long range',
-        'min_altitude': 6000,
-        'max_passengers': 440,
-        'category': 'Wide-Body'
+    'Airbus H125': {
+        'emoji': '🚁',
+        'passengers': 5,
+        'crew': 1,
+        'weight': 2650,
+        'speed': 287,
+        'cruise_altitude': 35000,
+        'landing_distance': 0,
+        'fuel_capacity': 1140,
+        'wingspan': 0,
+        'length': 12.74,
+        'description': 'High-altitude helicopter',
+        'min_altitude': 500,
+        'max_passengers': 6,
+        'category': 'Helicopter',
+        'rotor_diameter': 10.69,
+        'vertical_capable': True,
+        'hover_time': 150,
+        'max_hover_altitude': 32000,
+        'empty_weight': 2650,
+        'service_ceiling': 35000,
+        'blade_count': 4,
     },
-    'Boeing 737 MAX': {
-        'emoji': '🛬',
-        'passengers': 210,
-        'crew': 6,
-        'weight': 82191,
-        'speed': 460,
-        'cruise_altitude': 41000,
-        'landing_distance': 1600,
-        'fuel_capacity': 26730,
-        'wingspan': 35.9,
-        'length': 39.5,
-        'description': 'Modern narrow-body aircraft',
-        'min_altitude': 4500,
-        'max_passengers': 250,
-        'category': 'Narrow-Body'
+    'Sikorsky S-76': {
+        'emoji': '🚁',
+        'passengers': 14,
+        'crew': 2,
+        'weight': 5340,
+        'speed': 287,
+        'cruise_altitude': 18000,
+        'landing_distance': 0,
+        'fuel_capacity': 3500,
+        'wingspan': 0,
+        'length': 16.7,
+        'description': 'Medium-lift helicopter',
+        'min_altitude': 500,
+        'max_passengers': 16,
+        'category': 'Helicopter',
+        'rotor_diameter': 17.07,
+        'vertical_capable': True,
+        'hover_time': 180,
+        'max_hover_altitude': 15000,
+        'empty_weight': 5340,
+        'service_ceiling': 18000,
+        'blade_count': 5,
+    },
+    'Airbus H145': {
+        'emoji': '🚁',
+        'passengers': 6,
+        'crew': 2,
+        'weight': 3900,
+        'speed': 287,
+        'cruise_altitude': 20000,
+        'landing_distance': 0,
+        'fuel_capacity': 1530,
+        'wingspan': 0,
+        'length': 13.9,
+        'description': 'Twin-engine SAR helicopter',
+        'min_altitude': 500,
+        'max_passengers': 10,
+        'category': 'Helicopter',
+        'rotor_diameter': 12.80,
+        'vertical_capable': True,
+        'hover_time': 160,
+        'max_hover_altitude': 18000,
+        'empty_weight': 3900,
+        'service_ceiling': 20000,
+        'blade_count': 4,
+    },
+    'Robinson R66': {
+        'emoji': '🚁',
+        'passengers': 2,
+        'crew': 1,
+        'weight': 1090,
+        'speed': 160,
+        'cruise_altitude': 15000,
+        'landing_distance': 0,
+        'fuel_capacity': 200,
+        'wingspan': 0,
+        'length': 9.5,
+        'description': 'Light utility helicopter',
+        'min_altitude': 300,
+        'max_passengers': 3,
+        'category': 'Helicopter',
+        'rotor_diameter': 7.67,
+        'vertical_capable': True,
+        'hover_time': 90,
+        'max_hover_altitude': 12000,
+        'empty_weight': 1090,
+        'service_ceiling': 15000,
+        'blade_count': 2,
+    },
+    'Mil Mi-8': {
+        'emoji': '🚁',
+        'passengers': 28,
+        'crew': 3,
+        'weight': 7150,
+        'speed': 280,
+        'cruise_altitude': 19000,
+        'landing_distance': 0,
+        'fuel_capacity': 3390,
+        'wingspan': 0,
+        'length': 18.17,
+        'description': 'Heavy-lift transport helicopter',
+        'min_altitude': 500,
+        'max_passengers': 32,
+        'category': 'Helicopter',
+        'rotor_diameter': 21.29,
+        'vertical_capable': True,
+        'hover_time': 200,
+        'max_hover_altitude': 14000,
+        'empty_weight': 7150,
+        'service_ceiling': 19000,
+        'blade_count': 5,
+    },
+    'Eurocopter EC130': {
+        'emoji': '🚁',
+        'passengers': 6,
+        'crew': 1,
+        'weight': 2540,
+        'speed': 180,
+        'cruise_altitude': 15000,
+        'landing_distance': 0,
+        'fuel_capacity': 840,
+        'wingspan': 0,
+        'length': 12.84,
+        'description': 'Light observation helicopter',
+        'min_altitude': 300,
+        'max_passengers': 7,
+        'category': 'Helicopter',
+        'rotor_diameter': 11.0,
+        'vertical_capable': True,
+        'hover_time': 110,
+        'max_hover_altitude': 12000,
+        'empty_weight': 2540,
+        'service_ceiling': 15000,
+        'blade_count': 3,
+    },
+    'Kamov Ka-32': {
+        'emoji': '🚁',
+        'passengers': 12,
+        'crew': 3,
+        'weight': 5300,
+        'speed': 209,
+        'cruise_altitude': 14700,
+        'landing_distance': 0,
+        'fuel_capacity': 2400,
+        'wingspan': 0,
+        'length': 15.9,
+        'description': 'Firefighting/rescue helicopter',
+        'min_altitude': 500,
+        'max_passengers': 16,
+        'category': 'Helicopter',
+        'rotor_diameter': 15.5,
+        'vertical_capable': True,
+        'hover_time': 130,
+        'max_hover_altitude': 11000,
+        'empty_weight': 5300,
+        'service_ceiling': 14700,
+        'blade_count': 5,
     },
 }
 
@@ -590,43 +901,29 @@ except ImportError as e:
     st.error(f"❌ Missing dependency: {str(e)}")
     st.stop()
 
-try:
-    from data_simulator import get_aircraft_data, generate_zones
-    from risk_model import calculate_score, get_risk_level, get_factor_scores
-    from map_builder import build_map, dist_km
-    from styles_final import (DARK_CSS, TOPBAR_HTML, TICKER_HTML,
-                              SECTION_HEADER, stat_card, zone_card_clean,
-                              ai_tips_html, danger_alert_html)
-    from charts import bar_chart_html, radar_chart_html, gauge_html
-    from advanced_patent_features import (
-        TrajectoryPredictor, DynamicRiskMatrix, AdaptiveRecommendationEngine,
-        WeatherImpactSimulator, EmergencyDecisionTree, PredictiveFailureAnalysis,
-        PerformanceMetrics, render_trajectory_tab, render_risk_matrix_tab,
-        render_recommendations_tab, render_weather_simulator_tab,
-        render_health_analysis_tab, render_decision_tree_tab,
-        render_performance_analytics_tab
-    )
-except ImportError as e:
-    st.error(f"❌ Import Error: {str(e)}")
-    logger.error(f"Import failed: {e}")
-    st.stop()
+# ═══════════════════════════════════════════════════════════════
+# DARK THEME CSS
+# ═══════════════════════════════════════════════════════════════
 
-# ═══════════════════════════════════════════════════════════════
-# PAGE CONFIG
-# ═══════════════════════════════════════════════════════════════
-st.set_page_config(
-    page_title="ELZF-AI v5.0 | Professional Emergency Landing System",
-    page_icon="✈️",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-    menu_items={
-        'Get Help': 'https://github.com/yourusername/ELZF-AI',
-        'Report a bug': 'https://github.com/yourusername/ELZF-AI/issues',
-        'About': '### ELZF-AI v5.0\nFull Integration: Aircraft Control + Type Selection + Sound + AI + Data Fusion'
-    }
-)
+DARK_CSS = """
+<style>
+* { margin: 0; padding: 0; }
+html, body, [data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #0f1527 0%, #1a1f3a 100%);
+    color: #e0e6ed;
+}
+.stApp { background: linear-gradient(135deg, #0f1527 0%, #1a1f3a 100%); }
+[data-testid="stMetric"] {
+    background-color: rgba(15, 21, 39, 0.7);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+</style>
+"""
 
 st.markdown(DARK_CSS, unsafe_allow_html=True)
+st.markdown(HOLOGRAPHIC_CSS, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
 # CACHING & OPTIMIZATION
@@ -635,7 +932,12 @@ st.markdown(DARK_CSS, unsafe_allow_html=True)
 @lru_cache(maxsize=128)
 def cached_dist_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Cache distance calculations"""
-    return dist_km(lat1, lon1, lat2, lon2)
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    return round(R * c, 1)
 
 @st.cache_data(ttl=3600)
 def process_zones_data(zones_tuple) -> pd.DataFrame:
@@ -652,23 +954,133 @@ def process_zones_data(zones_tuple) -> pd.DataFrame:
         return pd.DataFrame()
 
 # ═══════════════════════════════════════════════════════════════
-# AIRCRAFT TYPE GENERATOR
+# HELPER FUNCTIONS FOR HELICOPTERS
+# ═══════════════════════════════════════════════════════════════
+
+def calculate_score(zone: Dict) -> float:
+    """Calculate zone safety score"""
+    distance_score = max(0, 30 - (zone.get('distance_factor', 0) * 3))
+    area_score = min(25, (zone.get('area', 0) / 50000) * 25)
+    wind_score = max(0, 20 - (zone.get('wind', 0) * 0.5))
+    obstacle_score = max(0, 15 - (zone.get('obstacles', 0) * 2))
+    type_score = {'airport': 10, 'highway': 8, 'field': 6}.get(zone.get('type', ''), 0)
+    
+    return distance_score + area_score + wind_score + obstacle_score + type_score
+
+def get_risk_level(score: float) -> Tuple[str, str]:
+    """Get risk level and color"""
+    if score >= 80:
+        return "✅ OPTIMAL", "#00ff9d"
+    elif score >= 50:
+        return "⚠️ ACCEPTABLE", "#00d4ff"
+    elif score >= 30:
+        return "⚠️ RISKY", "#ffb800"
+    else:
+        return "❌ DANGEROUS", "#ff3d71"
+
+def get_factor_scores(zone: Dict) -> Dict:
+    """Get factor scores for zone"""
+    return {
+        'Distance': zone.get('distance_factor', 50),
+        'Area': zone.get('area', 0) / 500,
+        'Wind': 100 - zone.get('wind', 10) * 2,
+        'Obstacles': 100 - zone.get('obstacles', 0) * 10,
+    }
+
+def stat_card(label: str, value: str, unit: str, color: str, badge: str, status: str) -> str:
+    """Generate stat card HTML"""
+    status_colors = {
+        'ok': '#00ff9d',
+        'warn': '#ffb800',
+        'danger': '#ff3d71',
+        'info': '#00d4ff'
+    }
+    
+    return f"""
+    <div style="background:rgba(15,21,39,0.7);border:1px solid {color};border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:10px;color:#8892b0;font-family:'Space Mono',monospace;text-transform:uppercase;margin-bottom:4px;">{badge}</div>
+        <div style="font-size:16px;color:{color};font-weight:700;margin-bottom:4px;">{value}<span style="font-size:10px;margin-left:4px;">{unit}</span></div>
+        <div style="font-size:9px;color:{status_colors.get(status, '#8892b0')};font-weight:700;">{label}</div>
+    </div>
+    """
+
+def zone_card_clean(zone: Dict, idx: int, selected: bool) -> str:
+    """Generate zone card"""
+    score = zone['score']
+    risk_color = "#00ff9d" if score >= 75 else "#00d4ff" if score >= 50 else "#ffb800" if score >= 30 else "#ff3d71"
+    border = "3px solid #00ff9d" if selected else f"1px solid {risk_color}"
+    
+    return f"""
+    <div style="background:rgba(15,21,39,0.7);border:{border};border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;transition:all 0.3s;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-size:11px;color:#00d4ff;font-family:'Space Mono',monospace;font-weight:700;">ZONE {chr(65+idx)}</div>
+                <div style="font-size:12px;color:#e0e6ed;margin-top:4px;">{zone.get('name', 'Unknown')}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:20px;color:{risk_color};font-weight:700;">{score:.0f}</div>
+                <div style="font-size:9px;color:#8892b0;">/100</div>
+            </div>
+        </div>
+    </div>
+    """
+
+def ai_tips_html(score: float) -> str:
+    """Generate AI tips"""
+    if score >= 80:
+        tip = "✅ OPTIMAL ZONE - Execute landing immediately. All parameters favorable."
+        tip_color = "#00ff9d"
+    elif score >= 50:
+        tip = "⚠️ ACCEPTABLE - Zone suitable with caution. Monitor approach carefully."
+        tip_color = "#00d4ff"
+    elif score >= 30:
+        tip = "⚠️ RISKY - Zone marginal. Consider alternatives if available."
+        tip_color = "#ffb800"
+    else:
+        tip = "❌ DANGEROUS - Avoid this zone. Search for better alternatives."
+        tip_color = "#ff3d71"
+    
+    return f"""
+    <div style="background:rgba(15,21,39,0.8);border:1px solid {tip_color};border-radius:8px;padding:12px;">
+        <div style="color:{tip_color};font-size:11px;font-family:'Space Mono',monospace;font-weight:700;">{tip}</div>
+    </div>
+    """
+
+def danger_alert_html(danger_zones: pd.DataFrame) -> str:
+    """Generate danger alert"""
+    count = len(danger_zones)
+    return f"""
+    <div style="background:rgba(255,61,113,0.1);border:1px solid #ff3d71;border-radius:8px;padding:12px;">
+        <div style="color:#ff3d71;font-size:11px;font-family:'Space Mono',monospace;font-weight:700;">
+            ⚠️ {count} DANGEROUS ZONES DETECTED - AVOID APPROACH
+        </div>
+    </div>
+    """
+
+# ═══════════════════════════════════════════════════════════════
+# AIRCRAFT TYPE GENERATOR (HELICOPTERS ONLY)
 # ═══════════════════════════════════════════════════════════════
 
 def create_aircraft_from_type(aircraft_type: str) -> Dict:
-    """Create aircraft data based on selected type"""
+    """Create aircraft data based on selected helicopter type"""
     if aircraft_type not in AIRCRAFT_DATABASE:
         aircraft_type = list(AIRCRAFT_DATABASE.keys())[0]
     
     db_aircraft = AIRCRAFT_DATABASE[aircraft_type]
     
     emergencies = {
-        'Jumbo': ['Engine Failure', 'Hydraulic Loss', 'Pressurization Loss'],
-        'Wide-Body': ['Landing Gear Issue', 'Engine Fire', 'Fuel Leak'],
-        'Narrow-Body': ['Engine Shutdown', 'Electrical Failure', 'Structural Damage'],
-        'Regional': ['Engine Problem', 'Avionics Failure', 'Cabin Depressurization'],
-        'Light': ['Engine Malfunction', 'Fuel Problem', 'Instrumentation Failure'],
-        'Helicopter': ['Engine Shutdown', 'Rotor Damage', 'Hydraulic Failure']
+        'Helicopter': [
+            'Engine Failure',
+            'Rotor Damage',
+            'Hydraulic Loss',
+            'Tail Rotor Failure',
+            'Electrical Failure',
+            'Transmission Damage',
+            'Fuel System Leak',
+            'Main Rotor Blade Crack',
+            'Instrument Failure',
+            'Control System Malfunction'
+        ]
     }
     
     emergency_list = emergencies.get(db_aircraft['category'], ['System Failure'])
@@ -676,8 +1088,8 @@ def create_aircraft_from_type(aircraft_type: str) -> Dict:
     aircraft = {
         'latitude': 28.5244,
         'longitude': 77.1855,
-        'altitude': np.random.randint(int(db_aircraft['min_altitude']), int(db_aircraft['cruise_altitude'])),
-        'speed': np.random.randint(int(db_aircraft['speed'] * 0.7), int(db_aircraft['speed'])),
+        'altitude': np.random.randint(500, int(db_aircraft['cruise_altitude'] * 0.8)),
+        'speed': int(db_aircraft['speed'] * np.random.uniform(0.6, 1.0)),
         'heading': np.random.randint(0, 360),
         'fuel': np.random.choice(['CRITICAL', 'LOW', 'MODERATE', 'ADEQUATE']),
         'emergency': np.random.choice(emergency_list),
@@ -685,19 +1097,49 @@ def create_aircraft_from_type(aircraft_type: str) -> Dict:
         'crew': int(db_aircraft['crew']),
         'aircraft_type': aircraft_type,
         'weight': db_aircraft['weight'],
-        'wingspan': db_aircraft['wingspan'],
         'landing_distance': db_aircraft['landing_distance'],
-        'emoji': db_aircraft['emoji']
+        'emoji': db_aircraft['emoji'],
+        'hover_time': db_aircraft.get('hover_time', 60),
+        'rotor_diameter': db_aircraft.get('rotor_diameter', 0),
+        'blade_count': db_aircraft.get('blade_count', 4),
+        'service_ceiling': db_aircraft.get('service_ceiling', 20000),
     }
     
     return aircraft
+
+# ═══════════════════════════════════════════════════════════════
+# DATA FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def generate_zones(lat: float, lon: float, count: int = 15) -> List[Dict]:
+    """Generate landing zones"""
+    zones = []
+    for i in range(count):
+        zone_lat = lat + np.random.uniform(-0.5, 0.5)
+        zone_lon = lon + np.random.uniform(-0.5, 0.5)
+        zone_type = np.random.choice(['field', 'highway', 'airport', 'desert'])
+        
+        zones.append({
+            'lat': zone_lat,
+            'lon': zone_lon,
+            'name': f'Zone {chr(65 + i)}',
+            'type': zone_type,
+            'score': np.random.randint(30, 100),
+            'area': np.random.randint(5000, 50000),
+            'wind': np.random.randint(5, 35),
+            'obstacles': np.random.randint(0, 10),
+            'visibility': np.random.choice(['Clear', 'Moderate', 'Poor']),
+            'distance_factor': cached_dist_km(lat, lon, zone_lat, zone_lon)
+        })
+    
+    return zones
 
 # ═══════════════════════════════════════════════════════════════
 # INTERACTIVE MAP BUILDER
 # ═══════════════════════════════════════════════════════════════
 
 def build_interactive_map(aircraft: dict, zones: pd.DataFrame, pinned_location: Optional[Tuple] = None) -> folium.Map:
-    """Build interactive map with aircraft emoji and zone markers"""
+    """Build interactive map with helicopter"""
     
     map_center = [aircraft["latitude"], aircraft["longitude"]]
     
@@ -715,49 +1157,42 @@ def build_interactive_map(aircraft: dict, zones: pd.DataFrame, pinned_location: 
     folium.Marker(
         location=[aircraft["latitude"], aircraft["longitude"]],
         popup=f"""
-        <div style='width:250px;background:#0f1527;color:#e0e6ed;padding:12px;border-radius:8px;border:1px solid #00d4ff;'>
-            <b style='color:#00ff9d'>{aircraft['emoji']} {aircraft['aircraft_type']}</b><br><br>
-            <table style='width:100%;color:#8892b0;font-size:11px;'>
+        <div style='width:280px;background:#0f1527;color:#e0e6ed;padding:12px;border-radius:8px;border:2px solid #00ff9d;'>
+            <b style='color:#00ff9d;font-size:14px;'>{aircraft['emoji']} {aircraft['aircraft_type']}</b><br><br>
+            <table style='width:100%;color:#8892b0;font-size:10px;'>
+            <tr style='color:#00ff9d;'><td colspan='2'><b>HELICOPTER TELEMETRY</b></td></tr>
             <tr><td><b>Position:</b></td><td>{aircraft['latitude']:.4f}°, {aircraft['longitude']:.4f}°</td></tr>
             <tr><td><b>Altitude:</b></td><td>{aircraft['altitude']:,} ft</td></tr>
-            <tr><td><b>Speed:</b></td><td>{aircraft['speed']} kts</td></tr>
+            <tr><td><b>Airspeed:</b></td><td>{aircraft['speed']} kts</td></tr>
+            <tr><td><b>Heading:</b></td><td>{aircraft['heading']}°</td></tr>
+            <tr><td><b>Hover Time:</b></td><td>{aircraft['hover_time']} min</td></tr>
+            <tr><td><b>Rotor Diameter:</b></td><td>{aircraft['rotor_diameter']} m</td></tr>
+            <tr><td><b>Blade Count:</b></td><td>{aircraft['blade_count']}</td></tr>
             <tr><td><b>Passengers:</b></td><td>{aircraft['passengers']}</td></tr>
             <tr><td><b>Crew:</b></td><td>{aircraft['crew']}</td></tr>
-            <tr><td><b>Weight:</b></td><td>{aircraft['weight']:,} kg</td></tr>
-            <tr><td><b>Landing Distance:</b></td><td>{aircraft['landing_distance']} m</td></tr>
-            <tr><td><b>Emergency:</b></td><td style='color:#ff3d71'><b>{aircraft['emergency']}</b></td></tr>
+            <tr><td><b>Emergency:</b></td><td style='color:#ff3d71;'><b>{aircraft['emergency']}</b></td></tr>
+            <tr><td><b>Fuel:</b></td><td style='color:#ffb800;'><b>{aircraft['fuel']}</b></td></tr>
             </table>
         </div>
         """,
         tooltip=f"{aircraft['emoji']} {aircraft['aircraft_type']} (CURRENT)",
-        icon=folium.Icon(color=aircraft_marker_color, icon='plane', prefix='fa', icon_color='white')
+        icon=folium.Icon(color=aircraft_marker_color, icon='helicopter', prefix='fa', icon_color='white')
     ).add_to(m)
     
     if pinned_location:
         folium.Marker(
             location=pinned_location,
             popup=f"""
-            <div style='width:250px;background:#0f1527;color:#e0e6ed;padding:12px;border-radius:8px;border:2px solid #00ff9d;'>
-                <b style='color:#00ff9d'>✈️ NEW POSITION (PINNED)</b><br><br>
+            <div style='width:280px;background:#0f1527;color:#e0e6ed;padding:12px;border-radius:8px;border:2px solid #00ff9d;'>
+                <b style='color:#00ff9d'>🚁 NEW POSITION (PINNED)</b><br><br>
                 Latitude: <b>{pinned_location[0]:.6f}°</b><br>
                 Longitude: <b>{pinned_location[1]:.6f}°</b><br><br>
                 <span style='color:#ffb800;font-size:10px;'>Ready for simulation</span>
             </div>
             """,
-            tooltip="✈️ AIRCRAFT PINNED POSITION",
+            tooltip="🚁 HELICOPTER PINNED POSITION",
             icon=folium.Icon(color='green', icon='map-pin', prefix='fa', icon_color='white')
         ).add_to(m)
-    
-    zone_colors = {
-        'field': 'green',
-        'highway': 'blue',
-        'airport': 'purple',
-        'water': 'gray',
-        'mountain': 'orange',
-        'urban': 'red',
-        'beach': 'lightblue',
-        'desert': 'beige'
-    }
     
     for idx, (_, zone) in enumerate(zones.iterrows()):
         score = zone['score']
@@ -767,10 +1202,10 @@ def build_interactive_map(aircraft: dict, zones: pd.DataFrame, pinned_location: 
             location=[zone['lat'], zone['lon']],
             radius=8 + (score / 100 * 5),
             popup=f"""
-            <div style='width:240px;background:#0f1527;color:#e0e6ed;padding:12px;border-radius:8px;border:1px solid {color};'>
-                <b style='color:#00ff9d'>Zone {chr(65+idx)}: {zone['name']}</b><br>
+            <div style='width:240px;background:#0f1527;color:#e0e6ed;padding:12px;border-radius:8px;border:2px solid {color};'>
+                <b style='color:#00ff9d;'>Zone {chr(65+idx)}: {zone['name']}</b><br>
                 <hr style='border-color:rgba(0,212,255,0.2);margin:8px 0;'>
-                Score: <b style='color:#00ff9d'>{score:.0f}/100</b><br>
+                Score: <b style='color:#00ff9d;'>{score:.0f}/100</b><br>
                 Type: <b>{zone['type'].upper()}</b><br>
                 Wind: <b>{zone['wind']} kts</b><br>
                 Area: <b>{zone['area']:,} m²</b><br>
@@ -790,12 +1225,12 @@ def build_interactive_map(aircraft: dict, zones: pd.DataFrame, pinned_location: 
 
 # ═══════════════════════════════════════════════════════════════
 # SESSION STATE
-# ════════��══════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
 def init_session():
     """Initialize session state"""
     if "aircraft_type" not in st.session_state:
-        st.session_state.aircraft_type = 'Boeing 747 (Jumbo)'
+        st.session_state.aircraft_type = 'Bell 407'
         st.session_state.aircraft = create_aircraft_from_type(st.session_state.aircraft_type)
         st.session_state.zones_raw = generate_zones(
             st.session_state.aircraft["latitude"],
@@ -812,8 +1247,23 @@ def init_session():
 init_session()
 
 # ═══════════════════════════════════════════════════════════════
-# MAIN APPLICATION
+# PAGE CONFIG
 # ═══════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="ELZF-AI v5.0 | Helicopter Emergency Landing System",
+    page_icon="🚁",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': 'https://github.com/yourusername/ELZF-AI',
+        'Report a bug': 'https://github.com/yourusername/ELZF-AI/issues',
+        'About': '### ELZF-AI v5.0 HELICOPTER\nFull Integration: Helicopter Control + Type Selection + Sound + AI + Data Fusion'
+    }
+)
+
+# ═══════════════════════════════════════════════════════════════
+# MAIN APPLICATION
+# ═════════════════════���═════════════════════════════════════════
 
 def main():
     """Main application logic"""
@@ -833,26 +1283,42 @@ def main():
         sel_zone = df.iloc[min(sel_idx, len(df) - 1)].to_dict()
 
         # ─────────────────────────────────────────────────────────
-        # HEADER
+        # HEADER WITH HOLOGRAPHIC EFFECTS
         # ─────────────────────────────────────────────────────────
-        st.markdown(TOPBAR_HTML, unsafe_allow_html=True)
+        st.markdown("""
+        <div class="cockpit-panel" style="text-align:center;padding:30px;margin-bottom:20px;">
+            <div class="holographic-text" style="font-size:36px;margin-bottom:10px;">
+                🚁 ELZF-AI v5.0 - HELICOPTER EMERGENCY LANDING SYSTEM
+            </div>
+            <div class="hologram" style="font-size:14px;margin:10px 0;">
+                AI-Powered Real-Time Emergency Landing Zone Finder
+            </div>
+            <div class="anti-gravity" style="font-size:12px;color:#00d4ff;">
+                ⚡ Anti-Gravity Cockpit Interface ⚡
+            </div>
+            <div style="margin-top:10px;font-size:10px;color:#8892b0;font-family:'Space Mono',monospace;">
+                📊 AI + DATA FUSION + PREDICTIVE ANALYSIS + HELICOPTER CONTROL + SOUND ALERTS
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Version and System Info
         header_col1, header_col2, header_col3 = st.columns([2, 1, 1])
         
         with header_col1:
             st.markdown(f"""
-            <div style="font-size:11px;color:#8892b0;font-family:'Space Mono',monospace;letter-spacing:0.05em;">
-                🚀 ELZF-AI v5.0 | PROFESSIONAL EMERGENCY LANDING ZONE FINDER<br>
-                📊 AI + DATA FUSION + PREDICTIVE ANALYSIS + AIRCRAFT CONTROL + SOUND ALERTS
+            <div class="hologram" style="font-size:11px;">
+                🚁 HELICOPTER MODE ACTIVE<br>
+                📍 Position: {aircraft['latitude']:.4f}°, {aircraft['longitude']:.4f}°
             </div>
             """, unsafe_allow_html=True)
         
         with header_col2:
             st.markdown(f"""
-            <div style="font-size:10px;color:#00ff9d;font-family:'Space Mono',monospace;">
-                AI ENGINE: ONLINE<br>
-                DATA FUSION: ACTIVE
+            <div class="cockpit-readout">
+                🤖 AI ENGINE: ONLINE<br>
+                📡 DATA FUSION: ACTIVE<br>
+                🔮 PREDICTIVE: READY
             </div>
             """, unsafe_allow_html=True)
         
@@ -863,15 +1329,15 @@ def main():
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
         # ─────────────────────────────────────────────────────────
-        # AIRCRAFT SELECTION PANEL
+        # HELICOPTER SELECTION PANEL
         # ─────────────────────────────────────────────────────────
         st.markdown("""
-        <div style="background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(0,255,157,0.05));border:2px solid rgba(0,212,255,0.3);border-radius:12px;padding:15px;margin-bottom:15px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">
-                <div>
-                    <div style="font-size:11px;color:#8892b0;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">✈️ Aircraft Type Selection</div>
-                    <div style="font-size:12px;color:#00ff9d;font-family:'Space Mono',monospace;font-weight:700;">Currently Operating: {}</div>
-                </div>
+        <div class="cockpit-panel" style="border-color:#00ff9d;">
+            <div class="hologram" style="font-size:12px;margin-bottom:8px;">
+                🚁 HELICOPTER TYPE SELECTION
+            </div>
+            <div class="hologram" style="font-size:12px;color:#00d4ff;">
+                Currently Operating: {}
             </div>
         </div>
         """.format(aircraft['aircraft_type']), unsafe_allow_html=True)
@@ -880,14 +1346,14 @@ def main():
         
         with sel_col1:
             selected_aircraft_type = st.selectbox(
-                "Select Aircraft Type",
+                "Select Helicopter Type",
                 list(AIRCRAFT_DATABASE.keys()),
                 index=list(AIRCRAFT_DATABASE.keys()).index(st.session_state.aircraft_type),
                 key="aircraft_selector"
             )
         
         with sel_col2:
-            if st.button("🔄 CHANGE AIRCRAFT", use_container_width=True):
+            if st.button("🔄 CHANGE HELICOPTER", use_container_width=True):
                 st.session_state.aircraft_type = selected_aircraft_type
                 st.session_state.aircraft = create_aircraft_from_type(selected_aircraft_type)
                 st.session_state.zones_raw = generate_zones(
@@ -898,56 +1364,122 @@ def main():
                 st.session_state.sim_count += 1
                 st.session_state.aircraft_pinned = False
                 st.session_state.pinned_location = None
-                logger.info(f"Aircraft changed to: {selected_aircraft_type}")
+                logger.info(f"Helicopter changed to: {selected_aircraft_type}")
                 st.rerun()
         
         with sel_col3:
             aircraft_db = AIRCRAFT_DATABASE[aircraft['aircraft_type']]
-            st.markdown(f"<div style='text-align:center;padding:8px;background:rgba(0,212,255,0.1);border-radius:8px;'><div style='font-size:24px;'>{aircraft_db['emoji']}</div></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center;padding:8px;' class='rotor-indicator'>{aircraft_db['emoji']}</div>", unsafe_allow_html=True)
         
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
         # ─────────────────────────────────────────────────────────
-        # AIRCRAFT SPECS DISPLAY
+        # HELICOPTER SPECS DISPLAY WITH ANTI-GRAVITY EFFECTS
         # ─────────────────────────────────────────────────────────
+        st.markdown("<div class='hologram' style='text-align:center;margin:15px 0;font-size:12px;'>HELICOPTER SPECIFICATIONS</div>", unsafe_allow_html=True)
+        
         spec_col1, spec_col2, spec_col3, spec_col4, spec_col5 = st.columns(5)
         
         aircraft_db = AIRCRAFT_DATABASE[aircraft['aircraft_type']]
         
         with spec_col1:
-            st.markdown(stat_card("Category", aircraft_db['category'], "", "#00d4ff", "TYPE", "info"), unsafe_allow_html=True)
+            st.markdown(stat_card("Category", "Helicopter", "", "#00d4ff", "TYPE", "info"), unsafe_allow_html=True)
         with spec_col2:
             st.markdown(stat_card("Passengers", str(aircraft_db['passengers']), "max", "#00ff9d", "CAPACITY", "ok"), unsafe_allow_html=True)
         with spec_col3:
-            st.markdown(stat_card("Landing Dist", f"{aircraft_db['landing_distance']}", "m", "#9c6dff", "REQUIRED", "info"), unsafe_allow_html=True)
+            st.markdown(stat_card("Hover Time", f"{aircraft_db.get('hover_time', 60)}", "min", "#9c6dff", "DURATION", "info"), unsafe_allow_html=True)
         with spec_col4:
-            st.markdown(stat_card("Wingspan", f"{aircraft_db['wingspan']}", "m", "#ffb800", "WIDTH", "warn"), unsafe_allow_html=True)
+            st.markdown(stat_card("Rotor Diam.", f"{aircraft_db.get('rotor_diameter', 0)}", "m", "#ffb800", "DIAMETER", "warn"), unsafe_allow_html=True)
         with spec_col5:
             st.markdown(stat_card("Weight", f"{aircraft_db['weight']:,}", "kg", "#ff6b35", "GROSS", "warn"), unsafe_allow_html=True)
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
         # ─────────────────────────────────────────────────────────
-        # FLIGHT STATUS
+        # FLIGHT STATUS WITH COCKPIT READOUTS
         # ─────────────────────────────────────────────────────────
+        st.markdown("<div class='hologram' style='text-align:center;margin:15px 0;font-size:12px;'>REAL-TIME TELEMETRY</div>", unsafe_allow_html=True)
+        
         c1, c2, c3, c4, c5, c6 = st.columns(6)
         
         with c1:
-            st.markdown(stat_card("Altitude", f"{aircraft['altitude']:,}", "ft", "#00d4ff", "FT MSL", "warn"), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="cockpit-readout" style="border-left-color:#00d4ff;margin:0;">
+                <div style="font-size:11px;font-weight:700;color:#00d4ff;">ALTITUDE</div>
+                <div class="altitude-display">{aircraft['altitude']:,}</div>
+                <div style="font-size:9px;color:#8892b0;margin-top:4px;">ft MSL</div>
+            </div>
+            """, unsafe_allow_html=True)
         with c2:
-            st.markdown(stat_card("Airspeed", str(aircraft["speed"]), "kts", "#ff6b35", "KNOTS", "warn"), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="cockpit-readout" style="border-left-color:#ff6b35;margin:0;">
+                <div style="font-size:11px;font-weight:700;color:#ff6b35;">AIRSPEED</div>
+                <div class="altitude-display">{aircraft["speed"]}</div>
+                <div style="font-size:9px;color:#8892b0;margin-top:4px;">kts</div>
+            </div>
+            """, unsafe_allow_html=True)
         with c3:
-            st.markdown(stat_card("Heading", f"{aircraft['heading']}°", "", "#9c6dff", f"HDG", "info"), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="cockpit-readout" style="border-left-color:#9c6dff;margin:0;">
+                <div style="font-size:11px;font-weight:700;color:#9c6dff;">HEADING</div>
+                <div class="altitude-display">{aircraft['heading']}°</div>
+                <div style="font-size:9px;color:#8892b0;margin-top:4px;">Magnetic</div>
+            </div>
+            """, unsafe_allow_html=True)
         with c4:
-            fuel_col = "danger" if aircraft["fuel"] == "CRITICAL" else "warn"
-            st.markdown(stat_card("Fuel", aircraft["fuel"], "", "#ff3d71" if aircraft["fuel"]=="CRITICAL" else "#ffb800", aircraft["fuel"], fuel_col), unsafe_allow_html=True)
+            fuel_col = "#ff3d71" if aircraft["fuel"] == "CRITICAL" else "#ffb800"
+            st.markdown(f"""
+            <div class="cockpit-readout" style="border-left-color:{fuel_col};margin:0;">
+                <div style="font-size:11px;font-weight:700;color:{fuel_col};">FUEL</div>
+                <div class="altitude-display" style="color:{fuel_col};font-size:12px;">{aircraft["fuel"]}</div>
+                <div style="font-size:9px;color:#8892b0;margin-top:4px;">Status</div>
+            </div>
+            """, unsafe_allow_html=True)
         with c5:
-            st.markdown(stat_card("Emergency", aircraft["emergency"][:10], "", "#ff3d71", "ACTIVE", "danger"), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="cockpit-readout" style="border-left-color:#ff3d71;margin:0;">
+                <div style="font-size:11px;font-weight:700;color:#ff3d71;">EMERGENCY</div>
+                <div class="altitude-display" style="color:#ff3d71;font-size:10px;">{aircraft["emergency"][:8]}</div>
+                <div style="font-size:9px;color:#8892b0;margin-top:4px;">ACTIVE</div>
+            </div>
+            """, unsafe_allow_html=True)
         with c6:
             risk_lbl, risk_col = get_risk_level(best["score"])
-            st.markdown(stat_card("Best Score", str(int(best["score"])), "", risk_col, risk_lbl, "ok" if best["score"] > 80 else "warn"), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="cockpit-readout" style="border-left-color:{risk_col};margin:0;">
+                <div style="font-size:11px;font-weight:700;color:{risk_col};">BEST ZONE</div>
+                <div class="altitude-display" style="color:{risk_col};">{int(best["score"])}</div>
+                <div style="font-size:9px;color:#8892b0;margin-top:4px;">/100</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        # ─────────────────────────────────────────────────────────
+        # HELICOPTER STATUS INDICATOR
+        # ─────────────────────────────────────────────────────────
+        hover_status = "STABLE" if aircraft['altitude'] < aircraft['service_ceiling'] else "CRITICAL"
+        hover_color = "#00ff9d" if hover_status == "STABLE" else "#ff3d71"
+        
+        st.markdown(f"""
+        <div class="helicopter-status" style="border-color:{hover_color};">
+            <div class="rotor-icon">🚁</div>
+            <div>
+                <div class="hologram" style="font-size:12px;margin-bottom:4px;">HELICOPTER STATUS</div>
+                <div style="font-size:11px;color:#e0e6ed;">
+                    Hover Time: <span style="color:#00ff9d;font-weight:700;">{aircraft['hover_time']} min</span> | 
+                    Service Ceiling: <span style="color:#00ff9d;font-weight:700;">{aircraft['service_ceiling']:,} ft</span> | 
+                    Rotor Blades: <span style="color:#00ff9d;font-weight:700;">{aircraft['blade_count']}</span>
+                </div>
+                <div class="g-force-indicator" style="margin-top:4px;">
+                    <span class="rotor-status" style="margin-right:8px;"></span>
+                    <span class="hover-stable">{hover_status}</span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
 
         # ─────────────────────────────────────────────────────────
         # ALERT BOX
@@ -959,13 +1491,13 @@ def main():
         )
         
         st.markdown(f"""
-        <div style="background:linear-gradient(135deg,rgba(0,255,157,0.07),rgba(0,212,255,0.07));border:2px solid {risk_col};border-radius:12px;padding:15px 20px;display:flex;align-items:center;gap:15px;margin-bottom:15px;box-shadow:0 0 20px rgba(0,212,255,0.1)">
-            <div style="font-size:28px">⚡</div>
+        <div class="cockpit-panel" style="border-color:{risk_col};background:linear-gradient(135deg,rgba(0,255,157,0.07),rgba(0,212,255,0.07));display:flex;align-items:center;gap:15px;margin-bottom:15px;">
+            <div class="rotor-indicator" style="font-size:36px;">⚡</div>
             <div>
-                <div style="font-size:13px;color:#00ff9d;font-family:'Space Mono',monospace;font-weight:700;letter-spacing:0.04em">
+                <div class="holographic-text" style="font-size:13px;margin-bottom:4px;">
                     OPTIMAL ZONE: {best['name']} | SCORE: {best['score']:.0f}/100 | {best['type'].upper()} | {risk_lbl}
                 </div>
-                <div style="font-size:11px;color:#8892b0;font-family:'Space Mono',monospace;margin-top:4px">
+                <div class="hologram" style="font-size:11px;">
                     Distance: {km_best}km | Wind: {best['wind']}kts | Obstacles: {best['obstacles']} | Area: {best['area']:,}m²
                 </div>
             </div>
@@ -975,7 +1507,7 @@ def main():
         # ─────────────────────────────────────────────────────────
         # AI ANALYSIS SECTION
         # ─────────────────────────────────────────────────────────
-        st.markdown(SECTION_HEADER("🤖", "AI Multi-Source Data Fusion", "SATELLITE + WEATHER + PREDICTIVE"), unsafe_allow_html=True)
+        st.markdown("<div class='hologram' style='text-align:center;margin:15px 0;font-size:12px;'>🤖 AI MULTI-SOURCE DATA FUSION | SATELLITE + WEATHER + PREDICTIVE</div>", unsafe_allow_html=True)
         
         ai_col1, ai_col2, ai_col3, ai_col4 = st.columns(4)
         
@@ -1012,7 +1544,7 @@ def main():
         # SOUND ALERTS SECTION
         # ─────────────────────────────────────────────────────────
         if st.session_state.sound_enabled:
-            st.markdown(SECTION_HEADER("🔊", "Audio Alert System", "PILOT VOICE ALERTS"), unsafe_allow_html=True)
+            st.markdown("<div class='hologram' style='text-align:center;margin:15px 0;font-size:12px;'>🔊 AUDIO ALERT SYSTEM | PILOT VOICE ALERTS</div>", unsafe_allow_html=True)
             
             sound_col1, sound_col2, sound_col3, sound_col4 = st.columns(4)
             
@@ -1041,7 +1573,7 @@ def main():
         # ─────────────────────────────────────────────────────────
         # EMERGENCY ALERT SYSTEM
         # ─────────────────────────────────────────────────────────
-        st.markdown(SECTION_HEADER("🚨", "Real-Time Emergency Decision System", "AI-POWERED"), unsafe_allow_html=True)
+        st.markdown("<div class='hologram' style='text-align:center;margin:15px 0;font-size:12px;'>🚨 REAL-TIME EMERGENCY DECISION SYSTEM | AI-POWERED</div>", unsafe_allow_html=True)
         
         alert_level = EmergencyAlertSystem.evaluate_emergency_level(aircraft, best["score"])
         recommendation = RealTimeDecisionEngine.generate_landing_recommendation(df, aircraft, 
@@ -1061,13 +1593,11 @@ def main():
             }
             
             st.markdown(f"""
-            <div style="background:rgba{(0,212,255,0.1) if alert_level != 'EMERGENCY' else (255,61,113,0.15)};
-                        border:2px solid {alert_color[alert_level]};
-                        border-radius:10px;padding:15px;text-align:center;">
-                <div style="font-size:12px;color:{alert_color[alert_level]};font-family:'Space Mono',monospace;font-weight:700;margin-bottom:8px;">
+            <div class="cockpit-panel" style="border-color:{alert_color[alert_level]};text-align:center;">
+                <div class="hologram" style="font-size:12px;margin-bottom:8px;color:{alert_color[alert_level]};">
                     ALERT LEVEL
                 </div>
-                <div style="font-size:24px;color:{alert_color[alert_level]};font-weight:700;margin-bottom:8px;">
+                <div class="holographic-text" style="font-size:28px;margin-bottom:8px;color:{alert_color[alert_level]};">
                     {alert_level}
                 </div>
                 <div style="font-size:10px;color:#8892b0;">
@@ -1078,11 +1608,11 @@ def main():
         
         with alert_col2:
             st.markdown(f"""
-            <div style="background:rgba(0,255,157,0.1);border:2px solid #00ff9d;border-radius:10px;padding:15px;">
-                <div style="font-size:12px;color:#00ff9d;font-family:'Space Mono',monospace;font-weight:700;margin-bottom:8px;">
+            <div class="cockpit-panel" style="border-color:#00ff9d;">
+                <div class="hologram" style="font-size:12px;margin-bottom:8px;color:#00ff9d;">
                     RECOMMENDED ZONE
                 </div>
-                <div style="font-size:14px;color:#e0e6ed;font-weight:700;margin-bottom:4px;">
+                <div style="font-size:16px;color:#e0e6ed;font-weight:700;margin-bottom:4px;">
                     {best['name']}
                 </div>
                 <div style="font-size:11px;color:#8892b0;">
@@ -1095,11 +1625,11 @@ def main():
         
         with alert_col3:
             st.markdown(f"""
-            <div style="background:rgba(0,212,255,0.1);border:2px solid #00d4ff;border-radius:10px;padding:15px;">
-                <div style="font-size:12px;color:#00d4ff;font-family:'Space Mono',monospace;font-weight:700;margin-bottom:8px;">
+            <div class="cockpit-panel" style="border-color:#00d4ff;">
+                <div class="hologram" style="font-size:12px;margin-bottom:8px;color:#00d4ff;">
                     SYSTEM STATUS
                 </div>
-                <div style="font-size:11px;color:#8892b0;line-height:1.8;">
+                <div style="font-size:11px;color:#8892b0;line-height:1.8;font-family:'Space Mono',monospace;">
                     ✓ Reliability: {recommendation['system_reliability']:.1f}%<br>
                     ✓ Data Fusion: Active<br>
                     ✓ Predictive: Ready<br>
@@ -1110,12 +1640,10 @@ def main():
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-        
-
         # ─────────────────────────────────────────────────────────
         # INTERACTIVE MAP WITH PINNING
         # ─────────────────────────────────────────────────────────
-        st.markdown(SECTION_HEADER("🗺️", "Interactive Tactical Map", "CLICK TO PIN & CONFIRM"), unsafe_allow_html=True)
+        st.markdown("<div class='hologram' style='text-align:center;margin:15px 0;font-size:12px;'>🗺️ INTERACTIVE TACTICAL MAP | CLICK TO PIN & CONFIRM</div>", unsafe_allow_html=True)
         
         map_col, control_col = st.columns([1.4, 0.6])
 
@@ -1150,39 +1678,39 @@ def main():
                 st.error(f"⚠️ Map unavailable: {str(e)}")
 
         with control_col:
-            st.markdown(SECTION_HEADER("📡", "Landing Zones", "RANKED"), unsafe_allow_html=True)
+            st.markdown("<div class='hologram' style='font-size:12px;margin-bottom:8px;'>📡 LANDING ZONES | RANKED</div>", unsafe_allow_html=True)
             for rank, row in df.head(5).iterrows():
                 selected = (rank == sel_idx)
                 st.markdown(zone_card_clean(row.to_dict(), rank, selected), unsafe_allow_html=True)
 
         # ─────────────────────────────────────────────────────────
         # CONFIRMATION PANEL
-        # ─────────────────────────────────────────────────────────
+        # ─────────────────────────────────────────���───────────────
         if st.session_state.aircraft_pinned and st.session_state.pinned_location:
             st.markdown("<hr style='border-color:rgba(0,212,255,0.2);margin:20px 0'/>", unsafe_allow_html=True)
-            st.markdown(SECTION_HEADER("🎯", "Aircraft Position Pinned", "CONFIRM TO SIMULATE"), unsafe_allow_html=True)
+            st.markdown("<div class='hologram' style='text-align:center;margin:15px 0;font-size:12px;'>🎯 HELICOPTER POSITION PINNED | CONFIRM TO SIMULATE</div>", unsafe_allow_html=True)
             
             pin_col1, pin_col2, pin_col3 = st.columns([1.2, 1.2, 1])
             
             with pin_col1:
                 st.markdown(f"""
-                <div style="background:rgba(0,212,255,0.1);border:2px solid #00d4ff;border-radius:8px;padding:12px;">
-                    <div style="font-size:11px;color:#00d4ff;font-family:'Space Mono',monospace;font-weight:700;margin-bottom:8px;">📍 COORDINATES</div>
+                <div class="cockpit-panel" style="border-color:#00d4ff;">
+                    <div class="hologram" style="font-size:11px;margin-bottom:8px;">📍 COORDINATES</div>
                     <div style="font-size:10px;color:#8892b0;font-family:'Space Mono',monospace;line-height:1.8;">
                         Lat: {st.session_state.pinned_location[0]:.6f}°<br>
                         Lon: {st.session_state.pinned_location[1]:.6f}°<br>
-                        Aircraft: {aircraft['aircraft_type']}
+                        Helicopter: {aircraft['aircraft_type']}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
             
             with pin_col2:
                 st.markdown(f"""
-                <div style="background:rgba(255,184,0,0.1);border:2px solid #ffb800;border-radius:8px;padding:12px;">
-                    <div style="font-size:11px;color:#ffb800;font-family:'Space Mono',monospace;font-weight:700;margin-bottom:8px;">✈️ SPECS</div>
+                <div class="cockpit-panel" style="border-color:#ffb800;">
+                    <div class="hologram" style="font-size:11px;margin-bottom:8px;color:#ffb800;">🚁 SPECS</div>
                     <div style="font-size:10px;color:#8892b0;font-family:'Space Mono',monospace;">
                         Passengers: {aircraft['passengers']}<br>
-                        Landing Distance: {AIRCRAFT_DATABASE[aircraft['aircraft_type']]['landing_distance']}m<br>
+                        Rotor Diameter: {AIRCRAFT_DATABASE[aircraft['aircraft_type']]['rotor_diameter']}m<br>
                         Category: {AIRCRAFT_DATABASE[aircraft['aircraft_type']]['category']}
                     </div>
                 </div>
@@ -1201,7 +1729,7 @@ def main():
                     st.session_state.selected_zone = 0
                     st.session_state.aircraft_pinned = False
                     st.session_state.pinned_location = None
-                    st.success("✓ Aircraft moved and simulation started!")
+                    st.success("✓ Helicopter moved and simulation started!")
                     st.rerun()
 
         st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
@@ -1212,19 +1740,19 @@ def main():
         tip_col, danger_col = st.columns([1.5, 1])
         
         with tip_col:
-            st.markdown(SECTION_HEADER("🤖", "AI Recommendation", "INTELLIGENT ANALYSIS"), unsafe_allow_html=True)
+            st.markdown("<div class='hologram' style='text-align:center;margin:8px 0;font-size:11px;'>🤖 AI RECOMMENDATION | INTELLIGENT ANALYSIS</div>", unsafe_allow_html=True)
             st.markdown(ai_tips_html(best["score"]), unsafe_allow_html=True)
         
         with danger_col:
-            st.markdown(SECTION_HEADER("🚫", "Risk Assessment", "ZONE SAFETY"), unsafe_allow_html=True)
+            st.markdown("<div class='hologram' style='text-align:center;margin:8px 0;font-size:11px;'>🚫 RISK ASSESSMENT | ZONE SAFETY</div>", unsafe_allow_html=True)
             danger_zones = df[df["score"] < 30]
             if len(danger_zones) > 0:
                 st.markdown(danger_alert_html(danger_zones), unsafe_allow_html=True)
             else:
                 st.markdown("""
-                <div style="background:rgba(0,255,157,0.1);border:1px solid #00ff9d;border-radius:8px;padding:12px;text-align:center">
+                <div class="cockpit-panel" style="border-color:#00ff9d;text-align:center;">
                     <div style="font-size:28px;margin-bottom:4px">✓</div>
-                    <div style="font-size:11px;color:#00ff9d;font-family:'Space Mono',monospace;font-weight:700">ALL ZONES SAFE</div>
+                    <div class="hologram" style="color:#00ff9d;">ALL ZONES SAFE</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1233,44 +1761,52 @@ def main():
         # ─────────────────────────────────────────────────────────
         # MAIN TABS
         # ─────────────────────────────────────────────────────────
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+        tab1, tab2, tab3 = st.tabs([
             "📊 Analysis",
             "🗂️ Zones",
-            "✈️ Aircraft",
-            "🔮 Trajectory",
-            "📊 Risk Matrix",
-            "🤖 Recommendations",
-            "⛅ Weather",
-            "🔧 Health",
-            "📈 Analytics"
+            "🚁 Helicopter"
         ])
 
         with tab1:
-            render_analysis_tab(df, sel_zone, best)
+            st.markdown("<div class='hologram' style='margin:10px 0;'>ZONE ANALYSIS</div>", unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                st.metric("Total Zones", len(df))
+            with c2:
+                st.metric("Safe Zones (>75)", len(df[df['score'] >= 75]))
 
         with tab2:
-            render_zones_tab(df, aircraft)
+            st.markdown("<div class='hologram' style='margin:10px 0;'>ZONE COMPARISON</div>", unsafe_allow_html=True)
+            display_df = df.copy()
+            display_df["distance"] = display_df.apply(
+                lambda r: f"{cached_dist_km(aircraft['latitude'], aircraft['longitude'], r['lat'], r['lon']):.1f}km",
+                axis=1
+            )
+            display_cols = ["name", "score", "type", "area", "wind", "obstacles", "distance"]
+            display_df = display_df[display_cols]
+            display_df.columns = ["Zone", "Score", "Type", "Area(m²)", "Wind(kt)", "Obstacles", "Distance"]
+            st.dataframe(display_df, use_container_width=True, height=300)
 
         with tab3:
-            render_aircraft_tab(aircraft)
-
-        with tab4:
-            render_trajectory_tab()
-
-        with tab5:
-            render_risk_matrix_tab()
-
-        with tab6:
-            render_recommendations_tab()
-
-        with tab7:
-            render_weather_simulator_tab()
-
-        with tab8:
-            render_health_analysis_tab()
-
-        with tab9:
-            render_performance_analytics_tab()
+            st.markdown("<div class='hologram' style='margin:10px 0;'>HELICOPTER TELEMETRY</div>", unsafe_allow_html=True)
+            ac1, ac2, ac3 = st.columns(3)
+            fields = [
+                ("Latitude", f"{aircraft['latitude']:.6f}°N", "info"),
+                ("Longitude", f"{aircraft['longitude']:.6f}°E", "info"),
+                ("Altitude", f"{aircraft['altitude']:,} ft", "warn"),
+                ("Airspeed", f"{aircraft['speed']} kts", "warn"),
+                ("Heading", f"{aircraft['heading']}°", "info"),
+                ("Fuel", aircraft["fuel"], "danger" if aircraft["fuel"]=="CRITICAL" else "warn"),
+                ("Emergency", aircraft["emergency"], "danger"),
+                ("Passengers", str(aircraft["passengers"]), "ok"),
+                ("Crew", str(aircraft["crew"]), "ok"),
+            ]
+            
+            for i, (label, value, badge_col) in enumerate(fields):
+                col_ref = [ac1, ac2, ac3][i % 3]
+                col_map = {"info": "#00d4ff", "warn": "#ffb800", "danger": "#ff3d71", "ok": "#00ff9d"}
+                with col_ref:
+                    st.markdown(stat_card(label, value, "", col_map[badge_col], label, badge_col), unsafe_allow_html=True)
 
         # ─────────────────────────────────────────────────────────
         # BOTTOM CONTROLS
@@ -1282,7 +1818,7 @@ def main():
         col1, col2, col3 = st.columns([1.5, 1.5, 1])
         
         with col1:
-            st.markdown("<div style='font-size:10px;color:#8892b0;font-family:Space Mono;letter-spacing:0.1em;margin-bottom:8px'>SELECT ZONE</div>", unsafe_allow_html=True)
+            st.markdown("<div class='hologram' style='font-size:10px;margin-bottom:8px;'>SELECT ZONE</div>", unsafe_allow_html=True)
             zone_options = [f"{row['name']} — {row['score']:.0f}" for _, row in df.iterrows()]
             chosen = st.selectbox("", zone_options, index=sel_idx, label_visibility="collapsed", key="zone_select")
             st.session_state.selected_zone = zone_options.index(chosen)
@@ -1302,115 +1838,21 @@ def main():
                 st.rerun()
 
         with col3:
-            st.markdown(f"<div style='font-size:10px;color:#8892b0;font-family:Space Mono;text-align:right;padding-top:28px'>SIM #{st.session_state.sim_count}<br><span style='color:#00ff9d'>v5.0 COMPLETE</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='hologram' style='font-size:10px;text-align:right;padding-top:28px;'>SIM #{st.session_state.sim_count}<br><span style='color:#00ff9d;'>v5.0 COMPLETE</span></div>", unsafe_allow_html=True)
 
         # ─────────────────────────────────────────────────────────
         # FOOTER
         # ─────────────────────────────────────────────────────────
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
         st.markdown("""
-        <div style="text-align:center;padding:12px;font-size:10px;font-family:'Space Mono',monospace;color:rgba(136,146,176,0.4);border-top:1px solid rgba(0,212,255,0.08);letter-spacing:0.1em">
-            ELZF-AI v5.0 ◆ PROFESSIONAL GRADE ◆ COMPLETE INTEGRATION ◆ AIRCRAFT CONTROL ◆ SOUND ALERTS ◆ AI + DATA FUSION ◆ PATENT READY
+        <div class="cockpit-panel" style="text-align:center;padding:12px;font-size:9px;border-color:rgba(0,212,255,0.3);letter-spacing:0.1em;">
+            🚁 ELZF-AI v5.0 ◆ HELICOPTER EMERGENCY LANDING SYSTEM ◆ ANTI-GRAVITY COCKPIT ◆ PROFESSIONAL GRADE ◆ COMPLETE INTEGRATION ◆ AI + DATA FUSION ◆ PATENT READY
         </div>
         """, unsafe_allow_html=True)
 
     except Exception as e:
         logger.error(f"Application error: {e}")
         st.error(f"❌ Application Error: {str(e)}")
-
-# ═══════════════════════════════════════════════════════════════
-# TAB RENDERERS
-# ═══════════════════════════════════════════════════════════════
-
-def render_analysis_tab(df: pd.DataFrame, sel_zone: Dict, best: Dict):
-    """Analysis tab with charts"""
-    ch1, ch2, ch3 = st.columns([1, 1, 0.65])
-    
-    with ch1:
-        st.markdown(SECTION_HEADER("📊", "Score Comparison", "ALL ZONES"), unsafe_allow_html=True)
-        try:
-            bar_html = bar_chart_html(df.to_dict("records"))
-            components.html(bar_html, height=250, scrolling=False)
-        except:
-            st.info("Chart unavailable")
-    
-    with ch2:
-        st.markdown(SECTION_HEADER("🕸️", "Risk Radar", "FACTORS"), unsafe_allow_html=True)
-        try:
-            factor_scores = get_factor_scores(sel_zone)
-            radar_html = radar_chart_html(sel_zone, factor_scores)
-            components.html(radar_html, height=270, scrolling=False)
-        except:
-            st.info("Radar unavailable")
-    
-    with ch3:
-        st.markdown(SECTION_HEADER("🎯", "Gauge", "BEST ZONE"), unsafe_allow_html=True)
-        try:
-            g_html = gauge_html(int(best["score"]))
-            components.html(g_html, height=200, scrolling=False)
-        except:
-            st.info("Gauge unavailable")
-
-def render_zones_tab(df: pd.DataFrame, aircraft: Dict):
-    """Zone comparison tab"""
-    st.markdown(SECTION_HEADER("🗂️", "Zone Comparison", "TOP LANDING OPTIONS"), unsafe_allow_html=True)
-    
-    zone_types_emoji = {"field": "🌾", "highway": "🛣️", "airport": "✈️", "water": "💧",
-                        "mountain": "⛰️", "urban": "🏙️", "beach": "🏖️", "desert": "🏜️"}
-    
-    cols = st.columns(4)
-    for idx, (col, (_, zone)) in enumerate(zip(cols, df.head(4).iterrows())):
-        with col:
-            score = zone["score"]
-            risk_color = "#00ff9d" if score >= 75 else "#00d4ff" if score >= 50 else "#ffb800" if score >= 30 else "#ff3d71"
-            emoji = zone_types_emoji.get(zone["type"].lower(), "📍")
-            
-            st.markdown(f"""
-            <div style="background:rgba(15,21,39,0.7);border:2px solid {risk_color};border-radius:10px;padding:15px;text-align:center">
-                <div style="font-size:32px;margin-bottom:8px">{emoji}</div>
-                <div style="font-size:11px;font-weight:700;color:#00d4ff;font-family:'Space Mono',monospace;margin-bottom:4px">ZONE {chr(65+idx)}</div>
-                <div style="font-size:10px;color:#8892b0;margin-bottom:6px">{zone['name']}</div>
-                <div style="font-size:22px;font-weight:700;color:{risk_color};margin-bottom:6px">{score:.0f}</div>
-                <div style="background:rgba(0,212,255,0.2);border:1px solid #00d4ff;border-radius:4px;padding:4px;font-size:9px;color:#00d4ff;font-family:'Space Mono',monospace;font-weight:700">{zone['type'].upper()}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
-    st.markdown(SECTION_HEADER("📋", "Full Data", "ALL ZONES"), unsafe_allow_html=True)
-    
-    display_df = df.copy()
-    display_df["distance"] = display_df.apply(
-        lambda r: f"{cached_dist_km(aircraft['latitude'], aircraft['longitude'], r['lat'], r['lon']):.1f}km",
-        axis=1
-    )
-    display_cols = ["name", "score", "type", "area", "wind", "obstacles", "distance"]
-    display_df = display_df[display_cols]
-    display_df.columns = ["Zone", "Score", "Type", "Area(m²)", "Wind(kt)", "Obstacles", "Distance"]
-    
-    st.dataframe(display_df, use_container_width=True, height=300)
-
-def render_aircraft_tab(aircraft: Dict):
-    """Aircraft telemetry tab"""
-    st.markdown(SECTION_HEADER("✈️", "Aircraft Telemetry", "LIVE STATUS"), unsafe_allow_html=True)
-    
-    ac1, ac2, ac3 = st.columns(3)
-    fields = [
-        ("Latitude", f"{aircraft['latitude']:.6f}°N", "info"),
-        ("Longitude", f"{aircraft['longitude']:.6f}°E", "info"),
-        ("Altitude", f"{aircraft['altitude']:,} ft", "warn"),
-        ("Airspeed", f"{aircraft['speed']} kts", "warn"),
-        ("Heading", f"{aircraft['heading']}°", "info"),
-        ("Fuel", aircraft["fuel"], "danger" if aircraft["fuel"]=="CRITICAL" else "warn"),
-        ("Emergency", aircraft["emergency"], "danger"),
-        ("Passengers", str(aircraft["passengers"]), "ok"),
-        ("Crew", str(aircraft["crew"]), "ok"),
-    ]
-    
-    for i, (label, value, badge_col) in enumerate(fields):
-        col_ref = [ac1, ac2, ac3][i % 3]
-        col_map = {"info": "#00d4ff", "warn": "#ffb800", "danger": "#ff3d71", "ok": "#00ff9d"}
-        with col_ref:
-            st.markdown(stat_card(label, value, "", col_map[badge_col], label, badge_col), unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
