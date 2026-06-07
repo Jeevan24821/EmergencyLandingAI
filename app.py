@@ -1,13 +1,3 @@
-"""
-app.py - Full integrated EmergencyLandingAI application
-- Preserves existing functionality (charts, risk model, map builder, advanced features)
-- Integrates a client-side helicopter mission simulator (simulator_component.py)
-- Designed for Streamlit Cloud compatibility and contest-grade visuals
-
-How to run:
-    streamlit run app.py
-"""
-
 from typing import Optional, Tuple, Dict, List
 import streamlit as st
 import streamlit.components.v1 as components
@@ -45,9 +35,9 @@ except Exception:
     data_simulator = None
 
 try:
-    import advanced_patent_features
+    import advanced_features
 except Exception:
-    advanced_patent_features = None
+    advanced_features = None
 
 try:
     import styles_final
@@ -530,11 +520,11 @@ def page_map():
 
 def page_advanced():
     """Enhanced Advanced section with proper UI and organized layout."""
-    st.markdown(SECTION_HEADER("🧠", "Advanced Patent Features", "AI-POWERED INTELLIGENCE MODULES"), unsafe_allow_html=True)
+    st.markdown(SECTION_HEADER("🧠", "Advanced Features", "AI-POWERED INTELLIGENCE MODULES"), unsafe_allow_html=True)
     
-    if not advanced_patent_features:
+    if not advanced_features:
         st.warning("🔌 Advanced features module not loaded")
-        st.info("Place `advanced_patent_features.py` in your repository to unlock AI-powered intelligence.")
+        st.info("Place `advanced_features.py` in your repository to unlock AI-powered intelligence.")
         st.markdown("---")
         return
 
@@ -622,8 +612,8 @@ def page_advanced():
             confidence_threshold = st.slider("Confidence threshold (%)", 50, 100, 85, help="Minimum confidence for predictions")
         
         try:
-            if hasattr(advanced_patent_features, "TrajectoryPredictor"):
-                tp = advanced_patent_features.TrajectoryPredictor
+            if hasattr(advanced_features, "TrajectoryPredictor"):
+                tp = advanced_features.TrajectoryPredictor
                 pred = tp.predict_trajectory(
                     st.session_state.aircraft, 
                     st.session_state.zones, 
@@ -684,8 +674,8 @@ def page_advanced():
         st.markdown("---")
         
         try:
-            if hasattr(advanced_patent_features, "DynamicRiskMatrix"):
-                drm = advanced_patent_features.DynamicRiskMatrix
+            if hasattr(advanced_features, "DynamicRiskMatrix"):
+                drm = advanced_features.DynamicRiskMatrix
                 risk_matrix = drm.calculate_risk_matrix(selected_zone, st.session_state.aircraft)
                 
                 # Risk summary cards
@@ -774,8 +764,8 @@ def page_advanced():
         health_refresh = st.button("🔄 Refresh Health Analysis", help="Re-run comprehensive system diagnostics")
         
         try:
-            if hasattr(advanced_patent_features, "PredictiveFailureAnalysis"):
-                pfa = advanced_patent_features.PredictiveFailureAnalysis
+            if hasattr(advanced_features, "PredictiveFailureAnalysis"):
+                pfa = advanced_features.PredictiveFailureAnalysis
                 health = pfa.assess_aircraft_health(st.session_state.aircraft)
                 
                 # Overall health gauge
