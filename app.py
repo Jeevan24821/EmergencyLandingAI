@@ -73,7 +73,8 @@ def safe_bar_chart_html(zones):
     # fallback simple HTML
     labels = [z["name"] for z in zones]
     scores = [z["score"] for z in zones]
-    return f"<div style='padding:12px;color:#cbd6ea;'>Bar chart unavailable. Zones: {labels}</div>"
+    bars = "".join(f"<div style='display:flex;align-items:center;margin:6px 0;'><div style='width:160px;color:#a8c9ff'>{labels[i]}</div><div style='height:12px;background:#2b7cff;border-radius:6px;width:{scores[i]}px;margin-left:8px'></div><div style='width:40px;text-align:right;color:#cbd6ea;margin-left:8px'>{scores[i]}</div></div>" for i in range(len(labels)))
+    return f"<div style='padding:12px;color:#cbd6ea;font-family:Space Mono,monospace'>{bars}</div>"
 
 def safe_radar_html(zone, factor_scores):
     if charts and hasattr(charts, "radar_chart_html"):
@@ -149,23 +150,32 @@ class AircraftSoundSystem:
 def inject_style():
     if styles_final and hasattr(styles_final, "DARK_CSS"):
         st.markdown(styles_final.DARK_CSS, unsafe_allow_html=True)
-    else:
-        # Minimal styling fallback
-        st.markdown(
-            """
-            <style>
-            body { background: #07101a; color:#cbd6ea; font-family: 'Space Mono', monospace; }
-            .stButton > button { border-radius: 8px; }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+        return
+    # Minimal styling fallback including base fonts / colors
+    st.markdown(
+        """
+        <style>
+        :root {
+            --bg:#07101a;
+            --muted:#8892b0;
+            --accent:#00d4ff;
+            --card:#071826;
+            --glass: rgba(255,255,255,0.03);
+        }
+        body { background: var(--bg); color:#cbd6ea; font-family: 'Space Mono', monospace; }
+        .stButton > button { border-radius: 8px; }
+        .elzf-topbar { padding:8px 10px; color:var(--accent); font-weight:700; font-family: 'Space Mono', monospace; }
+        .elzf-card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:10px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def render_topbar():
     if styles_final and hasattr(styles_final, "TOPBAR_HTML"):
         st.markdown(styles_final.TOPBAR_HTML, unsafe_allow_html=True)
     else:
-        st.markdown("<div style='padding:8px 0;color:#00d4ff;font-weight:700'>ELZF-AI — Emergency Landing Zone Finder</div>", unsafe_allow_html=True)
+        st.markdown("<div class='elzf-topbar'>ELZF-AI — Emergency Landing Zone Finder</div>", unsafe_allow_html=True)
 
 def SECTION_HEADER(icon: str, title: str, subtitle: str) -> str:
     if styles_final and hasattr(styles_final, "SECTION_HEADER"):
@@ -197,10 +207,11 @@ def get_demo_aircraft():
             "fuel": d.get("fuel", "MODERATE"),
             "emergency": d.get("emergency", ""),
             "passengers": d.get("passengers", 120),
+            "type": d.get("type", "H145"),
         }
     # fallback static
     return {"latitude": 37.6190, "longitude": -122.375, "altitude": 800, "speed_mps": 35, "speed": 35,
-            "heading": 0, "fuel": "MODERATE", "emergency": "Engine Failure", "passengers": 120}
+            "heading": 0, "fuel": "MODERATE", "emergency": "Engine Failure", "passengers": 120, "type": "H145"}
 
 def get_demo_zones(lat: float = 37.6190, lon: float = -122.375):
     if data_simulator and hasattr(data_simulator, "generate_zones"):
@@ -222,12 +233,154 @@ def get_demo_zones(lat: float = 37.6190, lon: float = -122.375):
 # Application pages (preserve original features, add simulator)
 # -----------------------------
 def page_home():
-    st.markdown(SECTION_HEADER("🏠", "Home", "OVERVIEW"))
-    st.write("Welcome to ELZF-AI — Emergency Landing Zone Finder. Use the sidebar to navigate to Analysis, Simulator, Map and Advanced features.")
+    # Use HTML header with unsafe allow
+    st.markdown(SECTION_HEADER("🏠", "Home", "OVERVIEW"), unsafe_allow_html=True)
+
+    # Top layout: left column = visual + controls, right column = quick stats + zones
+    left, right = st.columns([1,1.2])
+
+    # Antigravity controls that adjust the client animation
+    with right:
+        st.subheader("Quick controls")
+        st.metric("Aircraft Type", st.session_state.aircraft.get("type", "H145"))
+        st.metric("Last Mission Count", len(st.session_state.mission_log))
+        st.write("Use the controls below to trigger sounds or jump to the simulator.")
+        if st.button("Open Simulator"):
+            # set sidebar page selection (not always possible), provide hint
+            st.sidebar.radio("Navigate", ["Home", "Analysis", "Simulator", "Map", "Advanced", "Settings"], index=2)
+            st.info("Simulator selected in sidebar. If not visible, open the sidebar and click Simulator.")
+
+        if st.button("Play Alert Tone"):
+            AircraftSoundSystem.play_sound_streamlit("alert")
+
+        st.markdown("---")
+        st.subheader("Top Landing Zones")
+        df = st.session_state.zones
+        top = df.sort_values("score", ascending=False).head(4).reset_index(drop=True)
+        st.dataframe(top[["name","type","score","area"]], height=220)
+        # compact bar chart (client)
+        try:
+            chart_html = safe_bar_chart_html(top.to_dict("records"))
+            components.html(chart_html, height=180, scrolling=False)
+        except Exception:
+            st.write("Chart preview unavailable.")
+
+    with left:
+        st.subheader("Antigravity HUD")
+        # Antigravity toggle and intensity control
+        antigravity = st.checkbox("Enable Antigravity visual", value=True)
+        intensity = st.slider("Lift intensity", min_value=0, max_value=60, value=18)
+
+        # Build a small HTML/CSS/JS snippet that animates a helicopter icon with rotor spin and float amplitude controlled by intensity
+        html = f"""
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+        :root {{
+            --bg: #07101a;
+            --card: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            --accent: #00d4ff;
+            --amp: {intensity}px;
+            --speed: 2.6s;
+        }}
+        body{{ margin:0; background:var(--bg); color:#cbd6ea; font-family: 'Space Mono', monospace; }}
+        .scene{{ display:flex; align-items:center; justify-content:center; height:380px; }}
+        .card{{ width:360px; height:320px; border-radius:14px; background:var(--card); display:flex; align-items:center; justify-content:center; box-shadow: 0 8px 30px rgba(0,0,0,0.6); position:relative; overflow:hidden; }}
+        .heli {{
+            width:160px; height:160px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-direction:column;
+            color:#071826; font-weight:900; font-size:56px;
+            background: radial-gradient(circle at 30% 20%, rgba(0,212,255,0.12), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+            transform-origin: center;
+            transition: transform 0.25s linear;
+            margin-top: 0px;
+        }}
+        /* float animation */
+        @keyframes floatX {{
+            0% {{ transform: translateY(calc(var(--amp) * -1)) translateX(-6px) rotate(-1deg); }}
+            50% {{ transform: translateY(calc(var(--amp) * 1)) translateX(6px) rotate(1deg); }}
+            100% {{ transform: translateY(calc(var(--amp) * -1)) translateX(-6px) rotate(-1deg); }}
+        }}
+        .heli.animate {{ animation: floatX var(--speed) ease-in-out infinite; }}
+
+        /* rotor */
+        .rotor {{
+            width:120px; height:12px; border-radius:6px; background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+            position:relative; margin-bottom:8px;
+            box-shadow: 0 3px 16px rgba(0,0,0,0.6);
+        }}
+        @keyframes spin {{
+            from {{ transform: rotate(0deg); }}
+            to {{ transform: rotate(360deg); }}
+        }}
+        .rotor.spin {{ animation: spin 0.6s linear infinite; transform-origin:center; }}
+
+        .hud {{
+            position:absolute; left:12px; bottom:12px; color:#9fbde8; font-size:12px;
+            background: rgba(0,0,0,0.18); padding:8px 10px; border-radius:8px;
+        }}
+
+        .pulse {{
+            position:absolute; border-radius:50%; width:300px; height:300px; background: radial-gradient(circle, rgba(0,212,255,0.06), transparent 40%); opacity:0.6; pointer-events:none;
+            filter: blur(8px);
+            animation: pulse 3.2s ease-out infinite;
+        }}
+        @keyframes pulse {{
+            0% {{ transform: scale(0.85); opacity:0.6; }}
+            70% {{ transform: scale(1.15); opacity:0.12; }}
+            100% {{ transform: scale(0.85); opacity:0.6; }}
+        }}
+
+        /* small responsive */
+        @media (max-width:600px) {{
+            .card{{ width:100%; height:280px; }}
+        }}
+        </style>
+        </head>
+        <body>
+        <div class="scene">
+            <div class="card" role="region" aria-label="Antigravity HUD">
+                <div style="position:absolute; right:12px; top:12px; color:var(--accent); font-size:12px;">ELZF-AI HUD</div>
+                <div style="position:absolute; left:12px; top:12px; color:#9fbde8; font-size:12px;">Helicopter: {st.session_state.aircraft.get('type','H145')}</div>
+                <div style="position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
+                    <div id="heli" class="heli {'animate' if antigravity else ''}">
+                        <div id="rotor" class="rotor {'spin' if antigravity else ''}"></div>
+                        <div style="font-size:34px; color:#c6f0ff;">🚁</div>
+                        <div style="font-size:12px; color:#9fbde8; margin-top:6px;">Altitude: {int(st.session_state.aircraft.get('altitude',0))} m</div>
+                    </div>
+                    <div class="pulse" style="z-index:1; opacity:0.22;"></div>
+                </div>
+                <div class="hud">
+                    <div><strong>Lat:</strong> {st.session_state.aircraft.get('latitude',0):.5f}</div>
+                    <div><strong>Lon:</strong> {st.session_state.aircraft.get('longitude',0):.5f}</div>
+                    <div><strong>Speed:</strong> {st.session_state.aircraft.get('speed_mps',0)} m/s</div>
+                </div>
+            </div>
+        </div>
+        <script>
+            // Allow subtle interactivity: clicking the heli pulses rotor when antigravity is on
+            const heli = document.getElementById('heli');
+            const rotor = document.getElementById('rotor');
+            heli.addEventListener('click', () => {{
+                if (!heli.classList.contains('animate')) {{
+                    // quick bounce
+                    heli.style.transform = 'translateY(-12px) scale(1.02)';
+                    setTimeout(() => heli.style.transform = '', 260);
+                }} else {{
+                    // rotor boost visual
+                    rotor.style.animationDuration = '0.18s';
+                    setTimeout(() => rotor.style.animationDuration = '', 300);
+                }}
+            }});
+        </script>
+        </body>
+        </html>
+        """
+        # Render the animated widget in an iframe
+        components.html(html, height=420, scrolling=False)
+
     st.markdown("---")
-    st.write("Quick controls:")
-    st.metric("Aircraft Type", st.session_state.aircraft.get("type", "H145"))
-    st.metric("Last Mission Count", len(st.session_state.mission_log))
+    st.write("Tip: keep the Simulator tab open to run missions. Antigravity animation is a visual HUD; it does not affect mission physics.")
 
 def page_analysis():
     # Use your existing analysis tab renderer if available
