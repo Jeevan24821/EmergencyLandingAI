@@ -1,3 +1,22 @@
+"""
+simulator_component.py
+
+Modular Streamlit-compatible simulator component for EmergencyLandingAI.
+
+Provides:
+- compute_mission_profile(start, dest, altitude_m, groundspeed_mps, dt)
+- build_mission_payload(aircraft, zone, dt)
+- render_simulator(mission_payload, height=620)
+
+Usage (example):
+from simulator_component import build_mission_payload, render_simulator
+mission = build_mission_payload(aircraft, selected_zone, dt=1.0, groundspeed=None)
+render_simulator(mission)
+
+This file is safe to import into app.py or app_advanced_update.py. All animation runs client-side
+(via Leaflet + Lottie + inline JS) to remain Streamlit Cloud compatible.
+"""
+
 import streamlit as st
 import streamlit.components.v1 as components
 import json
@@ -15,40 +34,8 @@ def haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> floa
     phi2 = math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)*2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)*2
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-
-
-def generate_landing_zones(center: Tuple[float,float], radius_km: float = 2.0, 
-                          num_zones: int = 5) -> List[Dict]:
-    """
-    Generate candidate landing zones around the center point.
-    Each zone has position and a suitability score (0-100).
-    """
-    zones = []
-    lat, lon = center
-    radius_deg = radius_km / 111.0  # approximate degrees per km
-    
-    # Generate zones in concentric circles
-    angles = [i * (360 / num_zones) for i in range(num_zones)]
-    for i, angle in enumerate(angles):
-        rad = math.radians(angle)
-        # Vary radius for each zone (0.5 to 1.5 km from center)
-        zone_dist = radius_deg * (0.5 + 0.5 * math.sin(i))
-        z_lat = lat + zone_dist * math.cos(rad)
-        z_lon = lon + zone_dist * math.sin(rad)
-        
-        # Suitability score (random-ish but deterministic based on position)
-        score = int(70 + 20 * math.sin(angle * math.pi / 180))
-        
-        zones.append({
-            "lat": z_lat,
-            "lon": z_lon,
-            "score": max(40, min(95, score)),  # clamp 40-95
-            "radius_m": 50 + 30 * math.sin(i * 0.7)  # landing zone radius
-        })
-    
-    return zones
 
 
 def compute_mission_profile(start: Tuple[float,float], dest: Tuple[float,float], altitude_m: float = 800.0,
@@ -82,7 +69,7 @@ def compute_mission_profile(start: Tuple[float,float], dest: Tuple[float,float],
 # ---------------------------
 
 def build_mission_payload(aircraft: Dict, zone: Dict, dt: float = 1.0, groundspeed: float = None,
-                          autostart: bool = False, zoom: int = 13, generate_landing_zones_flag: bool = True) -> Dict:
+                          autostart: bool = False, zoom: int = 13) -> Dict:
     """Create mission payload JSON for the simulator component."""
     start = (aircraft.get("latitude"), aircraft.get("longitude"))
     dest = (zone.get("lat"), zone.get("lon"))
@@ -90,12 +77,6 @@ def build_mission_payload(aircraft: Dict, zone: Dict, dt: float = 1.0, groundspe
         groundspeed = aircraft.get("speed_mps") or aircraft.get("speed") or 35.0
     telemetry, distance, travel_time = compute_mission_profile(start, dest, altitude_m=aircraft.get("altitude",800),
                                                                groundspeed_mps=groundspeed, dt=dt)
-    
-    # Generate landing zones if enabled
-    landing_zones = []
-    if generate_landing_zones_flag:
-        landing_zones = generate_landing_zones(dest, radius_km=2.0, num_zones=6)
-    
     payload = {
         "start": [start[0], start[1]],
         "dest": [dest[0], dest[1]],
@@ -107,14 +88,13 @@ def build_mission_payload(aircraft: Dict, zone: Dict, dt: float = 1.0, groundspe
         "best_score": zone.get('score', 0),
         "dt": dt,
         "autostart": autostart,
-        "zoom": zoom,
-        "landing_zones": landing_zones
+        "zoom": zoom
     }
     return payload
 
 
 # ---------------------------
-# HTML/JS Template (Leaflet + Lottie + Landing Zone Visualization)
+# HTML/JS Template (Leaflet + Lottie)
 # ---------------------------
 
 _SIMULATOR_HTML = r"""
@@ -135,22 +115,6 @@ _SIMULATOR_HTML = r"""
   .mode-btn { background:rgba(255,255,255,0.03); color:#cbd6ea; padding:6px 8px; border-radius:6px; margin-right:6px; cursor:pointer; border:1px solid rgba(255,255,255,0.03) }
   .mode-btn.active { background:#00d4ff; color:#06121a; border:1px solid #00d4ff; }
   .rotor { position:absolute; width:160px; height:160px; left:50%; transform:translateX(-50%); top:8px; pointer-events:none; opacity:0.95; mix-blend-mode:screen; }
-  .landing-zone-marker { 
-    background: radial-gradient(circle, rgba(0,255,157,0.4), rgba(0,255,157,0.1));
-    border: 2px solid #00ff9d;
-    border-radius: 50%;
-    box-shadow: 0 0 12px rgba(0,255,157,0.6);
-  }
-  .landing-zone-marker.high-score {
-    background: radial-gradient(circle, rgba(0,212,255,0.5), rgba(0,212,255,0.1));
-    border-color: #00d4ff;
-    box-shadow: 0 0 16px rgba(0,212,255,0.8);
-  }
-  .landing-zone-marker.low-score {
-    background: radial-gradient(circle, rgba(255,61,113,0.3), rgba(255,61,113,0.05));
-    border-color: #ff3d71;
-    box-shadow: 0 0 10px rgba(255,61,113,0.5);
-  }
 </style>
 </head>
 <body>
@@ -200,12 +164,8 @@ _SIMULATOR_HTML = r"""
     </div>
 
     <div style="height:10px"></div>
-    <div class="panel-title">LANDING ZONES</div>
-    <div id="landingZonesList" style="font-size:11px;color:#cbd6ea;max-height:100px;overflow-y:auto;"></div>
-
-    <div style="height:10px"></div>
     <div class="panel-title">MISSION LOG</div>
-    <textarea id="missionLog" style="width:100%;height:100px;background:#07101a;color:#cbd6ea;border-radius:6px;padding:8px;font-family:inherit;font-size:10px;" readonly></textarea>
+    <textarea id="missionLog" style="width:100%;height:140px;background:#07101a;color:#cbd6ea;border-radius:6px;padding:8px;font-family:inherit;font-size:11px;" readonly></textarea>
   </div>
 </div>
 
@@ -214,16 +174,14 @@ _SIMULATOR_HTML = r"""
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-const mission = _MISSION_JSON_;
+const mission = __MISSION_JSON__;
 const center = mission.start || [0,0];
 const telemetry = mission.telemetry || [];
-const landingZones = mission.landing_zones || [];
 let speed_mps = mission.speed || 25;
 let playing = false;
 let playbackIndex = 0;
 let replayMode = false;
 let logLines = [];
-let selectedLandingZone = null;
 
 const map = L.map('map', {
   center: center,
@@ -243,58 +201,17 @@ const route = L.polyline(coords, {color:'#00d4ff', weight:3, opacity:0.8}).addTo
 
 // helicopter icon and marker
 const heliIcon = L.divIcon({
-  html: `<div style="transform:translate(-50%,-50%);animation:spin 2s linear infinite;">
+  html: `<div style="transform:translate(-50%,-50%);">
            <svg width="46" height="46" viewBox="0 0 512 512">
              <path fill="#00d4ff" d="M464 96c0-35.3-28.7-64-64-64H112C76.7 32 48 60.7 48 96v80l96 32v32H96v64h160v-64h-48v-32l120-40c7.2-2.4 14.9 1.1 17.3 8.3 2.4 7.1-0.8 14.8-7.5 18.7L240 288v112h64v32h64v-32h64V352l-64-24V96z"/>
            </svg>
-         </div>
-         <style>@keyframes spin { from { transform: translate(-50%,-50%) rotate(0deg); } to { transform: translate(-50%,-50%) rotate(360deg); } }</style>`,
+         </div>`,
   className: '',
   iconSize: [46,46],
   iconAnchor: [23,23]
 });
 
 let heliMarker = L.marker(center, {icon: heliIcon}).addTo(map);
-
-// Add landing zone circles
-const landingZoneMarkers = {};
-const landingZonesList = document.getElementById('landingZonesList');
-
-landingZones.forEach((zone, idx) => {
-  const isHighScore = zone.score >= 70;
-  const isLowScore = zone.score < 50;
-  const className = isHighScore ? 'landing-zone-marker high-score' : isLowScore ? 'landing-zone-marker low-score' : 'landing-zone-marker';
-  
-  const zoneIcon = L.divIcon({
-    html: <div class="${className}" style="width:${zone.radius_m * 2}px;height:${zone.radius_m * 2}px;"></div>,
-    className: '',
-    iconSize: [zone.radius_m * 2, zone.radius_m * 2],
-    iconAnchor: [zone.radius_m, zone.radius_m]
-  });
-  
-  const marker = L.marker([zone.lat, zone.lon], {icon: zoneIcon}).addTo(map);
-  marker.zoneData = zone;
-  marker.on('click', () => selectLandingZone(zone, idx));
-  landingZoneMarkers[idx] = marker;
-  
-  // Add to HUD list
-  const zoneItem = document.createElement('div');
-  zoneItem.style.marginBottom = '4px';
-  zoneItem.style.cursor = 'pointer';
-  zoneItem.style.padding = '4px';
-  zoneItem.style.borderRadius = '4px';
-  zoneItem.innerHTML = <span style="color:${isHighScore ? '#00d4ff' : isLowScore ? '#ff3d71' : '#00ff9d'}">Zone ${idx + 1} • ${zone.score}/100</span>;
-  zoneItem.onmouseover = () => zoneItem.style.background = 'rgba(0,212,255,0.1)';
-  zoneItem.onmouseout = () => zoneItem.style.background = 'transparent';
-  zoneItem.onclick = () => selectLandingZone(zone, idx);
-  landingZonesList.appendChild(zoneItem);
-});
-
-function selectLandingZone(zone, idx) {
-  selectedLandingZone = zone;
-  logEvent(Selected landing zone ${idx + 1} (Score: ${zone.score}));
-  map.setView([zone.lat, zone.lon], mission.zoom + 1);
-}
 
 // HUD elements
 const telemetryEl = document.getElementById('telemetry');
@@ -365,10 +282,9 @@ function downloadLog() {
 }
 
 function logEvent(s) {
-  const line = ${new Date().toISOString()} ${s};
+  const line = `${new Date().toISOString()} ${s}`;
   logLines.push(line);
   missionLogEl.value = logLines.join('\n');
-  missionLogEl.scrollTop = missionLogEl.scrollHeight;
 }
 
 function loopPlay() {
@@ -385,7 +301,7 @@ function loopPlay() {
   heliMarker.setLatLng([p.lat, p.lon]);
   route.setLatLngs(telemetry.slice(playbackIndex).map(x=>[x.lat,x.lon]));
   const rem = (telemetry[telemetry.length-1].t || 1) - p.t;
-  telemetryEl.innerHTML = ETA: ${formatSeconds(rem)} <br>ALT: ${p.alt.toFixed(0)} m <br>SPD: ${mission.speed.toFixed(1)} m/s <br>DIST: ${Math.round(mission.distance * (1 - p.t / (telemetry[telemetry.length-1].t || 1)))} m <br>STATUS: <span>${statusEl.innerText}</span>;
+  telemetryEl.innerHTML = `ETA: ${formatSeconds(rem)} <br>ALT: ${p.alt.toFixed(0)} m <br>SPD: ${mission.speed.toFixed(1)} m/s <br>DIST: ${Math.round(mission.distance * (1 - p.t / (telemetry[telemetry.length-1].t || 1)))} m <br>STATUS: <span>${statusEl.innerText}</span>`;
 
   if (p.alt < 100 && !replayMode) {
     warningsEl.innerHTML = '<span class="warning">LOW ALTITUDE — Prepare for touchdown</span>';
@@ -395,7 +311,7 @@ function loopPlay() {
     warningsEl.innerHTML = '<span style="color:#8892b0">No active warnings.</span>';
   }
 
-  const logline = t=${p.t.toFixed(1)}s lat=${p.lat.toFixed(5)} lon=${p.lon.toFixed(5)} alt=${p.alt.toFixed(0)}m;
+  const logline = `t=${p.t}s lat=${p.lat.toFixed(5)} lon=${p.lon.toFixed(5)} alt=${p.alt.toFixed(0)}`;
   logEvent(logline);
   playbackIndex += 1;
   setTimeout(loopPlay, Math.max(100, Math.round(mission.dt * 1000)));
@@ -404,7 +320,7 @@ function loopPlay() {
 function formatSeconds(s) {
   s = Math.max(0, Math.round(s));
   const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); const sec = s%60;
-  return ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')};
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
 if (coords.length>0) {
@@ -415,7 +331,7 @@ if (coords.length>0) {
 // add simple rotor visual using lottie
 const rotorContainer = document.createElement('div');
 rotorContainer.className = 'rotor';
-rotorContainer.innerHTML = <lottie-player src="https://assets10.lottiefiles.com/packages/lf20_8y3zvv.json"  background="transparent"  speed="2"  style="width:160px; height:160px;"  loop  autoplay></lottie-player>;
+rotorContainer.innerHTML = `<lottie-player src="https://assets10.lottiefiles.com/packages/lf20_8y3zvv.json"  background="transparent"  speed="2"  style="width:160px; height:160px;"  loop  autoplay></lottie-player>`;
 document.body.appendChild(rotorContainer);
 
 if (mission.autostart) startMission();
@@ -436,14 +352,14 @@ def render_simulator(mission_payload: Dict, height: int = 640):
     mission_payload: dictionary returned by build_mission_payload
     """
     mission_json = json.dumps(mission_payload)
-    html = SIMULATOR_HTML.replace('MISSION_JSON_', mission_json)
+    html = _SIMULATOR_HTML.replace('__MISSION_JSON__', mission_json)
     components.html(html, height=height, scrolling=False)
 
 
 # ---------------------------
 # Minimal CLI test for local dev
 # ---------------------------
-if _name_ == '_main_':
+if __name__ == '__main__':
     # quick demo when run directly (not via Streamlit)
     print('Simulator module loaded. Use from within your Streamlit app:')
     print('from simulator_component import build_mission_payload, render_simulator')
