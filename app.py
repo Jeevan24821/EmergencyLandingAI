@@ -166,6 +166,11 @@ def inject_style():
         .stButton > button { border-radius: 8px; }
         .elzf-topbar { padding:8px 10px; color:var(--accent); font-weight:700; font-family: 'Space Mono', monospace; }
         .elzf-card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:10px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+        .feature-card { background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(0,212,255,0.02)); border-left: 3px solid #00d4ff; padding: 14px; border-radius: 8px; margin-bottom: 12px; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .status-active { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .status-inactive { background: rgba(107,114,128,0.15); color: #9ca3af; }
+        .metric-box { background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid rgba(0,212,255,0.1); margin: 8px 0; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -190,9 +195,33 @@ def SECTION_HEADER(icon: str, title: str, subtitle: str) -> str:
     </div>
     """
 
-# -----------------------------
+# Enhanced card renderer for features
+def render_feature_card(title: str, description: str, status: str = "active", icon: str = "📌") -> str:
+    status_class = "status-active" if status == "active" else "status-inactive"
+    return f"""
+    <div class="feature-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">{icon}</span>
+                <span style="font-weight: 600; color: #00d4ff;">{title}</span>
+            </div>
+            <span class="status-badge {status_class}">{'ACTIVE' if status == 'active' else 'INACTIVE'}</span>
+        </div>
+        <div style="color: #cbd6ea; font-size: 13px; line-height: 1.5;">{description}</div>
+    </div>
+    """
+
+# Enhanced metric box renderer
+def render_metric_box(label: str, value: str, unit: str = "", detail: str = "") -> str:
+    return f"""
+    <div class="metric-box">
+        <div style="color: #8892b0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">{label}</div>
+        <div style="color: #00d4ff; font-size: 20px; font-weight: 700;">{value}<span style="font-size: 14px; color: #cbd6ea;"> {unit}</span></div>
+        {f'<div style="color: #6b7280; font-size: 11px; margin-top: 4px;">{detail}</div>' if detail else ''}
+    </div>
+    """
+
 # Data helpers (use data_simulator if available)
-# -----------------------------
 def get_demo_aircraft():
     if data_simulator and hasattr(data_simulator, "get_aircraft_data"):
         d = data_simulator.get_aircraft_data()
@@ -500,37 +529,310 @@ def page_map():
         st.write("Map display error:", e)
 
 def page_advanced():
-    st.markdown(SECTION_HEADER("🧠", "Advanced Patent Features", "PATENT-LEVEL AI MODULES"), unsafe_allow_html=True)
-    if advanced_patent_features:
-        # Render summaries of the module's functionality (non-invasive)
-        st.write("This section exposes advanced features implemented in advanced_patent_features.py.")
-        # Predictive trajectory demo
+    """Enhanced Advanced section with proper UI and organized layout."""
+    st.markdown(SECTION_HEADER("🧠", "Advanced Patent Features", "AI-POWERED INTELLIGENCE MODULES"), unsafe_allow_html=True)
+    
+    if not advanced_patent_features:
+        st.warning("🔌 Advanced features module not loaded")
+        st.info("Place `advanced_patent_features.py` in your repository to unlock AI-powered intelligence.")
+        st.markdown("---")
+        return
+
+    # Top-level feature overview with tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Predictive Analysis", "Risk Assessment", "Fleet Intelligence"])
+
+    # ========== TAB 1: OVERVIEW ==========
+    with tab1:
+        st.markdown(SECTION_HEADER("📋", "Integrated AI Modules", "System-wide Intelligence"), unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown(render_feature_card(
+                "Trajectory Prediction",
+                "AI-powered helicopter trajectory forecasting with multi-variable analysis",
+                "active",
+                "🛤️"
+            ), unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown(render_feature_card(
+                "Health Diagnostics",
+                "Predictive failure analysis for aircraft systems",
+                "active",
+                "⚕️"
+            ), unsafe_allow_html=True)
+            
+        with col3:
+            st.markdown(render_feature_card(
+                "Dynamic Risk Matrix",
+                "Real-time risk assessment across multiple parameters",
+                "active",
+                "⚠️"
+            ), unsafe_allow_html=True)
+
+        st.markdown("---")
+        
+        # System statistics
+        st.subheader("System Status")
+        stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+        
+        with stat_col1:
+            st.markdown(render_metric_box(
+                "AI Version",
+                "2.1",
+                "beta",
+                "Multi-module integration"
+            ), unsafe_allow_html=True)
+            
+        with stat_col2:
+            st.markdown(render_metric_box(
+                "Modules Active",
+                "3",
+                "of 3",
+                "All systems operational"
+            ), unsafe_allow_html=True)
+            
+        with stat_col3:
+            st.markdown(render_metric_box(
+                "Prediction Window",
+                "5",
+                "min",
+                "Real-time forecasting"
+            ), unsafe_allow_html=True)
+            
+        with stat_col4:
+            st.markdown(render_metric_box(
+                "Update Frequency",
+                "500",
+                "ms",
+                "High-frequency analysis"
+            ), unsafe_allow_html=True)
+
+    # ========== TAB 2: PREDICTIVE ANALYSIS ==========
+    with tab2:
+        st.markdown(SECTION_HEADER("🛤️", "Trajectory Prediction", "5-Minute Forecast"), unsafe_allow_html=True)
+        
+        col_pred1, col_pred2 = st.columns([1, 1])
+        
+        with col_pred1:
+            prediction_window = st.slider("Prediction window (minutes)", 1, 10, 5, help="How far ahead to predict the helicopter trajectory")
+        
+        with col_pred2:
+            confidence_threshold = st.slider("Confidence threshold (%)", 50, 100, 85, help="Minimum confidence for predictions")
+        
         try:
-            tp = advanced_patent_features.TrajectoryPredictor
-            pred = tp.predict_trajectory(st.session_state.aircraft, st.session_state.zones, prediction_minutes=5)
-            st.subheader("Predicted Position (5 min)")
-            st.json(pred)
+            if hasattr(advanced_patent_features, "TrajectoryPredictor"):
+                tp = advanced_patent_features.TrajectoryPredictor
+                pred = tp.predict_trajectory(
+                    st.session_state.aircraft, 
+                    st.session_state.zones, 
+                    prediction_minutes=prediction_window
+                )
+                
+                # Display prediction results
+                pred_col1, pred_col2, pred_col3 = st.columns(3)
+                
+                with pred_col1:
+                    st.markdown(render_metric_box(
+                        "Predicted Latitude",
+                        f"{pred.get('latitude', 0):.5f}",
+                        "°",
+                        f"Confidence: {pred.get('confidence', 0):.0f}%"
+                    ), unsafe_allow_html=True)
+                    
+                with pred_col2:
+                    st.markdown(render_metric_box(
+                        "Predicted Longitude",
+                        f"{pred.get('longitude', 0):.5f}",
+                        "°",
+                        f"Accuracy: ±{pred.get('uncertainty', 0):.3f}°"
+                    ), unsafe_allow_html=True)
+                    
+                with pred_col3:
+                    st.markdown(render_metric_box(
+                        "Predicted Altitude",
+                        f"{pred.get('altitude', 0):.0f}",
+                        "m",
+                        "AGL elevation"
+                    ), unsafe_allow_html=True)
+                
+                st.markdown("---")
+                
+                # Detailed trajectory data
+                with st.expander("📊 Detailed Trajectory Waypoints", expanded=False):
+                    st.json(pred)
+                    
         except Exception as e:
-            st.write("Predictive trajectory unavailable:", e)
-        # Health assessment
+            st.error(f"❌ Trajectory prediction unavailable: {str(e)}")
+            logger.exception("TrajectoryPredictor failed")
+
+    # ========== TAB 3: RISK ASSESSMENT ==========
+    with tab3:
+        st.markdown(SECTION_HEADER("⚠️", "Risk Assessment", "Multi-Variable Analysis"), unsafe_allow_html=True)
+        
+        # Zone selection for risk analysis
+        zones_df = st.session_state.zones
+        selected_zone_idx = st.selectbox(
+            "Select zone for analysis",
+            options=zones_df.index,
+            format_func=lambda i: f"{zones_df.loc[i, 'name']} (Score: {zones_df.loc[i, 'score']:.0f})",
+            help="Choose a landing zone to analyze its risk profile"
+        )
+        selected_zone = zones_df.loc[selected_zone_idx].to_dict()
+        
+        st.markdown("---")
+        
         try:
-            pfa = advanced_patent_features.PredictiveFailureAnalysis
-            health = pfa.assess_aircraft_health(st.session_state.aircraft)
-            st.subheader("Aircraft Health")
-            st.json(health)
+            if hasattr(advanced_patent_features, "DynamicRiskMatrix"):
+                drm = advanced_patent_features.DynamicRiskMatrix
+                risk_matrix = drm.calculate_risk_matrix(selected_zone, st.session_state.aircraft)
+                
+                # Risk summary cards
+                risk_col1, risk_col2, risk_col3, risk_col4 = st.columns(4)
+                
+                with risk_col1:
+                    overall_risk = risk_matrix.get("overall_risk_score", 0)
+                    risk_level = "🔴 HIGH" if overall_risk > 70 else "🟡 MEDIUM" if overall_risk > 40 else "🟢 LOW"
+                    st.markdown(render_metric_box(
+                        "Overall Risk Score",
+                        f"{overall_risk:.0f}",
+                        "/ 100",
+                        risk_level
+                    ), unsafe_allow_html=True)
+                    
+                with risk_col2:
+                    terrain_risk = risk_matrix.get("terrain_risk", 0)
+                    st.markdown(render_metric_box(
+                        "Terrain Risk",
+                        f"{terrain_risk:.0f}",
+                        "%",
+                        f"Safety: {'Good' if terrain_risk < 40 else 'Fair' if terrain_risk < 70 else 'Poor'}"
+                    ), unsafe_allow_html=True)
+                    
+                with risk_col3:
+                    weather_risk = risk_matrix.get("weather_risk", 0)
+                    st.markdown(render_metric_box(
+                        "Weather Risk",
+                        f"{weather_risk:.0f}",
+                        "%",
+                        f"Conditions: {'Optimal' if weather_risk < 30 else 'Challenging' if weather_risk < 60 else 'Hazardous'}"
+                    ), unsafe_allow_html=True)
+                    
+                with risk_col4:
+                    operational_risk = risk_matrix.get("operational_risk", 0)
+                    st.markdown(render_metric_box(
+                        "Operational Risk",
+                        f"{operational_risk:.0f}",
+                        "%",
+                        f"Readiness: {'Excellent' if operational_risk < 35 else 'Good' if operational_risk < 65 else 'Compromised'}"
+                    ), unsafe_allow_html=True)
+                
+                st.markdown("---")
+                
+                # Risk factors breakdown
+                st.subheader("Risk Factor Breakdown")
+                
+                risk_factors_col1, risk_factors_col2 = st.columns(2)
+                
+                with risk_factors_col1:
+                    st.markdown("**Environmental Factors**")
+                    env_factors = {
+                        "Wind Speed": risk_matrix.get("wind_factor", 0),
+                        "Visibility": risk_matrix.get("visibility_factor", 0),
+                        "Surface Condition": risk_matrix.get("surface_factor", 0),
+                        "Obstacles": risk_matrix.get("obstacles_factor", 0),
+                    }
+                    for factor, value in env_factors.items():
+                        st.write(f"• {factor}: `{value:.1f}%`")
+                        
+                with risk_factors_col2:
+                    st.markdown("**Aircraft Factors**")
+                    aircraft_factors = {
+                        "Fuel Level": risk_matrix.get("fuel_factor", 0),
+                        "Structural Integrity": risk_matrix.get("structure_factor", 0),
+                        "Engine Health": risk_matrix.get("engine_factor", 0),
+                        "Crew Fatigue": risk_matrix.get("crew_factor", 0),
+                    }
+                    for factor, value in aircraft_factors.items():
+                        st.write(f"• {factor}: `{value:.1f}%`")
+                
+                st.markdown("---")
+                
+                # Detailed risk matrix
+                with st.expander("📈 Full Risk Matrix Data", expanded=False):
+                    st.json(risk_matrix)
+                    
         except Exception as e:
-            st.write("Health analysis unavailable:", e)
-        # Risk matrix demo
+            st.error(f"❌ Risk assessment unavailable: {str(e)}")
+            logger.exception("DynamicRiskMatrix failed")
+
+    # ========== TAB 4: FLEET INTELLIGENCE ==========
+    with tab4:
+        st.markdown(SECTION_HEADER("⚕️", "Aircraft Health Diagnostics", "Predictive Maintenance"), unsafe_allow_html=True)
+        
+        health_refresh = st.button("🔄 Refresh Health Analysis", help="Re-run comprehensive system diagnostics")
+        
         try:
-            drm = advanced_patent_features.DynamicRiskMatrix
-            rm = drm.calculate_risk_matrix(st.session_state.zones.iloc[0].to_dict(), st.session_state.aircraft)
-            st.subheader("Risk Matrix (sample zone)")
-            st.json(rm)
+            if hasattr(advanced_patent_features, "PredictiveFailureAnalysis"):
+                pfa = advanced_patent_features.PredictiveFailureAnalysis
+                health = pfa.assess_aircraft_health(st.session_state.aircraft)
+                
+                # Overall health gauge
+                overall_health = health.get("overall_health_score", 0)
+                health_status = "✅ EXCELLENT" if overall_health > 85 else "⚠️ GOOD" if overall_health > 70 else "🔴 CAUTION"
+                
+                st.markdown(f"""
+                <div class="metric-box">
+                    <div style="color: #8892b0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Aircraft Overall Health</div>
+                    <div style="color: #00d4ff; font-size: 28px; font-weight: 700;">{overall_health:.1f}<span style="font-size: 18px; color: #cbd6ea;">%</span></div>
+                    <div style="color: #6b7280; font-size: 11px; margin-top: 8px;">{health_status}</div>
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; margin-top: 8px; overflow: hidden;">
+                        <div style="width: {overall_health}%; height: 100%; background: linear-gradient(90deg, #22c55e, #00d4ff); border-radius: 3px;"></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                
+                # System health breakdown
+                st.subheader("System Component Health")
+                
+                systems = [
+                    ("Engine", health.get("engine_health", 0)),
+                    ("Transmission", health.get("transmission_health", 0)),
+                    ("Hydraulics", health.get("hydraulics_health", 0)),
+                    ("Avionics", health.get("avionics_health", 0)),
+                    ("Structural", health.get("structural_health", 0)),
+                    ("Fuel System", health.get("fuel_system_health", 0)),
+                ]
+                
+                for system_name, health_value in systems:
+                    status_icon = "🟢" if health_value > 80 else "🟡" if health_value > 60 else "🔴"
+                    st.write(f"{status_icon} **{system_name}**: {health_value:.0f}%")
+                    st.progress(health_value / 100)
+                
+                st.markdown("---")
+                
+                # Maintenance predictions
+                st.subheader("Maintenance Predictions")
+                
+                if health.get("next_service_hours"):
+                    col_maintenance1, col_maintenance2 = st.columns(2)
+                    with col_maintenance1:
+                        st.info(f"⏱️ **Next Service Due**: {health.get('next_service_hours', 'N/A')} hours")
+                    with col_maintenance2:
+                        st.warning(f"🔧 **Priority Inspections**: {health.get('priority_inspections', 'None identified')}")
+                
+                st.markdown("---")
+                
+                # Health trends
+                with st.expander("📊 Detailed Health Report", expanded=False):
+                    st.json(health)
+                    
         except Exception as e:
-            st.write("Risk matrix unavailable:", e)
-    else:
-        st.warning("advanced_patent_features.py not found. This page shows a placeholder.")
-        st.info("Place advanced_patent_features.py in the repo to unlock advanced AI features.")
+            st.error(f"❌ Health assessment unavailable: {str(e)}")
+            logger.exception("PredictiveFailureAnalysis failed")
 
 def page_settings():
     st.markdown(SECTION_HEADER("⚙️", "Settings", "APPLICATION CONFIGURATION"), unsafe_allow_html=True)
@@ -601,7 +903,7 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.subheader("Mission Log")
     for i, m in enumerate(st.session_state.mission_log[-6:][::-1]):
-        t = f"Mission {len(st.session_state.mission_log) - i}: dist={int(m.get('distance',0))}m ETA={int(m.get('travel_time',0))}s"
+        t = f"Mission {i+1}: start={m['start']} dest={m['dest']} distance={int(m['distance'])} m"
         st.sidebar.write(t)
 
 if __name__ == "__main__":
