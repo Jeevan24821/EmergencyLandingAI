@@ -1,3 +1,22 @@
+"""
+simulator_component.py
+
+Modular Streamlit-compatible simulator component for EmergencyLandingAI.
+
+Provides:
+- compute_mission_profile(start, dest, altitude_m, groundspeed_mps, dt)
+- build_mission_payload(aircraft, zone, dt)
+- render_simulator(mission_payload, height=620)
+
+Usage (example):
+from simulator_component import build_mission_payload, render_simulator
+mission = build_mission_payload(aircraft, selected_zone, dt=1.0, groundspeed=None)
+render_simulator(mission)
+
+This file is safe to import into app.py or app_advanced_update.py. All animation runs client-side
+(via Leaflet + Lottie + inline JS) to remain Streamlit Cloud compatible.
+"""
+
 import streamlit as st
 import streamlit.components.v1 as components
 import json
@@ -15,7 +34,7 @@ def haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> floa
     phi2 = math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)*2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)*2
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
 
@@ -155,7 +174,7 @@ _SIMULATOR_HTML = r"""
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-const mission = _MISSION_JSON_;
+const mission = __MISSION_JSON__;
 const center = mission.start || [0,0];
 const telemetry = mission.telemetry || [];
 let speed_mps = mission.speed || 25;
@@ -263,7 +282,7 @@ function downloadLog() {
 }
 
 function logEvent(s) {
-  const line = ${new Date().toISOString()} ${s};
+  const line = `${new Date().toISOString()} ${s}`;
   logLines.push(line);
   missionLogEl.value = logLines.join('\n');
 }
@@ -282,7 +301,7 @@ function loopPlay() {
   heliMarker.setLatLng([p.lat, p.lon]);
   route.setLatLngs(telemetry.slice(playbackIndex).map(x=>[x.lat,x.lon]));
   const rem = (telemetry[telemetry.length-1].t || 1) - p.t;
-  telemetryEl.innerHTML = ETA: ${formatSeconds(rem)} <br>ALT: ${p.alt.toFixed(0)} m <br>SPD: ${mission.speed.toFixed(1)} m/s <br>DIST: ${Math.round(mission.distance * (1 - p.t / (telemetry[telemetry.length-1].t || 1)))} m <br>STATUS: <span>${statusEl.innerText}</span>;
+  telemetryEl.innerHTML = `ETA: ${formatSeconds(rem)} <br>ALT: ${p.alt.toFixed(0)} m <br>SPD: ${mission.speed.toFixed(1)} m/s <br>DIST: ${Math.round(mission.distance * (1 - p.t / (telemetry[telemetry.length-1].t || 1)))} m <br>STATUS: <span>${statusEl.innerText}</span>`;
 
   if (p.alt < 100 && !replayMode) {
     warningsEl.innerHTML = '<span class="warning">LOW ALTITUDE — Prepare for touchdown</span>';
@@ -292,7 +311,7 @@ function loopPlay() {
     warningsEl.innerHTML = '<span style="color:#8892b0">No active warnings.</span>';
   }
 
-  const logline = t=${p.t}s lat=${p.lat.toFixed(5)} lon=${p.lon.toFixed(5)} alt=${p.alt.toFixed(0)};
+  const logline = `t=${p.t}s lat=${p.lat.toFixed(5)} lon=${p.lon.toFixed(5)} alt=${p.alt.toFixed(0)}`;
   logEvent(logline);
   playbackIndex += 1;
   setTimeout(loopPlay, Math.max(100, Math.round(mission.dt * 1000)));
@@ -301,7 +320,7 @@ function loopPlay() {
 function formatSeconds(s) {
   s = Math.max(0, Math.round(s));
   const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); const sec = s%60;
-  return ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')};
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
 if (coords.length>0) {
@@ -312,7 +331,7 @@ if (coords.length>0) {
 // add simple rotor visual using lottie
 const rotorContainer = document.createElement('div');
 rotorContainer.className = 'rotor';
-rotorContainer.innerHTML = <lottie-player src="https://assets10.lottiefiles.com/packages/lf20_8y3zvv.json"  background="transparent"  speed="2"  style="width:160px; height:160px;"  loop  autoplay></lottie-player>;
+rotorContainer.innerHTML = `<lottie-player src="https://assets10.lottiefiles.com/packages/lf20_8y3zvv.json"  background="transparent"  speed="2"  style="width:160px; height:160px;"  loop  autoplay></lottie-player>`;
 document.body.appendChild(rotorContainer);
 
 if (mission.autostart) startMission();
@@ -333,14 +352,14 @@ def render_simulator(mission_payload: Dict, height: int = 640):
     mission_payload: dictionary returned by build_mission_payload
     """
     mission_json = json.dumps(mission_payload)
-    html = SIMULATOR_HTML.replace('MISSION_JSON_', mission_json)
+    html = _SIMULATOR_HTML.replace('__MISSION_JSON__', mission_json)
     components.html(html, height=height, scrolling=False)
 
 
 # ---------------------------
 # Minimal CLI test for local dev
 # ---------------------------
-if _name_ == '_main_':
+if __name__ == '__main__':
     # quick demo when run directly (not via Streamlit)
     print('Simulator module loaded. Use from within your Streamlit app:')
     print('from simulator_component import build_mission_payload, render_simulator')
