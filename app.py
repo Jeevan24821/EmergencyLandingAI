@@ -3,7 +3,6 @@ app.py - Full integrated EmergencyLandingAI application
 - Preserves existing functionality (charts, risk model, map builder, advanced features)
 - Integrates a client-side helicopter mission simulator (simulator_component.py)
 - Designed for Streamlit Cloud compatibility and contest-grade visuals
-- Enhanced with: Manual helicopter placement on map with dynamic landing zone prediction
 
 How to run:
     streamlit run app.py
@@ -46,9 +45,9 @@ except Exception:
     data_simulator = None
 
 try:
-    import advanced_features
+    import advanced_patent_features
 except Exception:
-    advanced_features = None
+    advanced_patent_features = None
 
 try:
     import styles_final
@@ -259,83 +258,6 @@ def get_demo_zones(lat: float = 37.6190, lon: float = -122.375):
         {"name":"Hill Delta","lat":lat+0.02,"lon":lon+0.015,"score":28,"type":"terrain","area":3000,"wind":8,"obstacles":"High","visibility":"Hazy","surface":"Gravel"},
     ])
 
-# Interactive map with manual placement
-def render_interactive_map():
-    """Render an interactive map where user can place helicopter and get landing zones"""
-    
-    st.subheader("Interactive Helicopter Placement")
-    
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        heli_lat = st.number_input("Helicopter Latitude", value=st.session_state.aircraft.get("latitude", 37.6190), format="%.6f", key="heli_lat_input")
-    with col2:
-        heli_lon = st.number_input("Helicopter Longitude", value=st.session_state.aircraft.get("longitude", -122.375), format="%.6f", key="heli_lon_input")
-    with col3:
-        heli_alt = st.number_input("Helicopter Altitude (m)", value=st.session_state.aircraft.get("altitude", 800), min_value=100, key="heli_alt_input")
-    
-    # Update aircraft position
-    if st.button("📍 Place Helicopter at Coordinates"):
-        st.session_state.aircraft.update({
-            "latitude": heli_lat,
-            "longitude": heli_lon,
-            "altitude": heli_alt
-        })
-        st.session_state.need_zone_update = True
-        st.success(f"✓ Helicopter placed at ({heli_lat:.5f}, {heli_lon:.5f})")
-        st.rerun()
-    
-    # Generate landing zones for current helicopter position
-    if st.button("🎯 Predict Landing Zones for Current Position") or st.session_state.get("need_zone_update", False):
-        current_lat = st.session_state.aircraft.get("latitude", 37.6190)
-        current_lon = st.session_state.aircraft.get("longitude", -122.375)
-        
-        if simulator_component and hasattr(simulator_component, "generate_terrain_aware_landing_zones"):
-            predicted_zones = simulator_component.generate_terrain_aware_landing_zones(
-                (current_lat, current_lon), 
-                radius_km=1.2, 
-                num_zones=6
-            )
-            st.session_state.predicted_landing_zones = predicted_zones
-            st.session_state.need_zone_update = False
-            st.success(f"✓ {len(predicted_zones)} landing zones predicted for position ({current_lat:.5f}, {current_lon:.5f})")
-        else:
-            st.warning("Simulator component not available")
-    
-    # Display predicted landing zones
-    if "predicted_landing_zones" in st.session_state and st.session_state.predicted_landing_zones:
-        st.markdown("---")
-        st.subheader("Detected Landing Zones")
-        
-        zones_df = pd.DataFrame(st.session_state.predicted_landing_zones)
-        zones_df_display = zones_df[["zone_type", "score", "direction", "terrain"]].copy()
-        zones_df_display.columns = ["Zone Type", "Score/100", "Direction", "Terrain"]
-        zones_df_display = zones_df_display.reset_index(drop=True)
-        zones_df_display.index = zones_df_display.index + 1
-        
-        st.dataframe(zones_df_display, use_container_width=True)
-        
-        # Let user select a landing zone
-        st.markdown("**Select a landing zone for mission:**")
-        zone_options = [f"Zone {i+1} - {z['zone_type']} (Score: {z['score']})" 
-                       for i, z in enumerate(st.session_state.predicted_landing_zones)]
-        selected_zone_idx = st.selectbox("Choose landing zone", range(len(zone_options)), format_func=lambda x: zone_options[x])
-        
-        if st.button("✓ Confirm Landing Zone Selection"):
-            selected_zone_data = st.session_state.predicted_landing_zones[selected_zone_idx]
-            st.session_state.selected_dynamic_zone = {
-                "name": f"Dynamic Zone {selected_zone_idx + 1}",
-                "lat": selected_zone_data["lat"],
-                "lon": selected_zone_data["lon"],
-                "score": selected_zone_data["score"],
-                "type": selected_zone_data["zone_type"],
-                "area": 5000,
-                "wind": 3,
-                "obstacles": "Low",
-                "visibility": "Clear",
-                "surface": "Open Ground"
-            }
-            st.success(f"✓ Zone selected: {st.session_state.selected_dynamic_zone['name']}")
-
 # -----------------------------
 # Application pages (preserve original features, add simulator)
 # -----------------------------
@@ -353,6 +275,7 @@ def page_home():
         st.metric("Last Mission Count", len(st.session_state.mission_log))
         st.write("Use the controls below to trigger sounds or jump to the simulator.")
         if st.button("Open Simulator"):
+            # set sidebar page selection (not always possible), provide hint
             st.sidebar.radio("Navigate", ["Home", "Analysis", "Simulator", "Map", "Advanced", "Settings"], index=2)
             st.info("Simulator selected in sidebar. If not visible, open the sidebar and click Simulator.")
 
@@ -517,97 +440,80 @@ def page_analysis():
 
 def page_simulator():
     st.markdown(SECTION_HEADER("🚁", "Mission Simulator", "REAL-TIME HELICOPTER EMERGENCY MISSION"), unsafe_allow_html=True)
-    
-    # Tabs for different mission modes
-    tab1, tab2 = st.tabs(["Predefined Zones", "Dynamic Placement"])
-    
-    # Tab 1: Traditional predefined zones
-    with tab1:
-        st.write("Simulate missions using predefined landing zones.")
-        df = st.session_state.zones
-        sel_idx = st.session_state.sel_index
-        sel_zone = df.loc[sel_idx].to_dict()
-        
-        col1, col2 = st.columns([1,1])
-        with col1:
-            start_lat = st.number_input("Start lat (Predefined)", value=st.session_state.aircraft.get("latitude", 37.6190), format="%.6f", key="pred_lat")
-            start_lon = st.number_input("Start lon (Predefined)", value=st.session_state.aircraft.get("longitude", -122.375), format="%.6f", key="pred_lon")
-            start_alt = st.number_input("Start altitude (m) (Predefined)", value=st.session_state.aircraft.get("altitude", 800), min_value=0, key="pred_alt")
-        with col2:
-            groundspeed = st.number_input("Groundspeed (m/s) (Predefined)", value=st.session_state.aircraft.get("speed_mps",35.0), key="pred_speed")
-            dt = st.slider("Telemetry interval (s) (Predefined)", 0.2, 2.0, 1.0, step=0.1, key="pred_dt")
+    st.write("This simulator animates a helicopter approaching the selected landing zone with HUD, ETA, altitude reduction, warnings, and rotor effects.")
+    df = st.session_state.zones
+    sel_idx = st.session_state.sel_index
+    sel_zone = df.loc[sel_idx].to_dict()
+    # Mission controls
+    col1, col2 = st.columns([1,1])
+    with col1:
+        start_lat = st.number_input("Start lat", value=st.session_state.aircraft.get("latitude", 37.6190), format="%.6f")
+        start_lon = st.number_input("Start lon", value=st.session_state.aircraft.get("longitude", -122.375), format="%.6f")
+        start_alt = st.number_input("Start altitude (m)", value=st.session_state.aircraft.get("altitude", 800), min_value=0)
+    with col2:
+        groundspeed = st.number_input("Groundspeed (m/s)", value=st.session_state.aircraft.get("speed_mps",35.0))
+        dt = st.slider("Telemetry interval (s)", 0.2, 2.0, 1.0, step=0.1)
 
-        st.session_state.aircraft.update({"latitude": start_lat, "longitude": start_lon, "altitude": start_alt, "speed_mps": groundspeed})
+    # Update session aircraft coords
+    st.session_state.aircraft.update({"latitude": start_lat, "longitude": start_lon, "altitude": start_alt, "speed_mps": groundspeed})
 
-        if simulator_component and hasattr(simulator_component, "build_mission_payload") and hasattr(simulator_component, "render_simulator"):
-            if st.button("Prepare Predefined Mission"):
-                aircraft = st.session_state.get("aircraft", {})
-                aircraft.update({"latitude": start_lat, "longitude": start_lon, "altitude": start_alt, "speed_mps": groundspeed})
-                mission_payload = simulator_component.build_mission_payload(aircraft=aircraft, zone=sel_zone, dt=dt, groundspeed=groundspeed, autostart=False, zoom=13)
-                st.session_state.last_mission = mission_payload
-                st.success("Mission prepared. Use the HUD below to Start/Abort/Replay.")
+    if simulator_component and hasattr(simulator_component, "build_mission_payload") and hasattr(simulator_component, "render_simulator"):
+        if st.button("Prepare Mission"):
+            aircraft = st.session_state.get("aircraft", {})
+            # update aircraft coords from inputs
+            aircraft.update({"latitude": start_lat, "longitude": start_lon, "altitude": start_alt, "speed_mps": groundspeed})
+            mission_payload = simulator_component.build_mission_payload(aircraft=aircraft, zone=sel_zone, dt=dt, groundspeed=groundspeed, autostart=False, zoom=13)
+            st.session_state.last_mission = mission_payload
+            st.success("Mission prepared. Use the HUD below to Start/Abort/Replay.")
 
-            if st.session_state.last_mission is None:
-                aircraft = st.session_state.get("aircraft")
-                mission_payload = simulator_component.build_mission_payload(aircraft=aircraft, zone=sel_zone, dt=dt, groundspeed=groundspeed, autostart=False, zoom=13)
-                st.session_state.last_mission = mission_payload
+        # Ensure we always have a payload for display (non-blocking)
+        if st.session_state.last_mission is None:
+            aircraft = st.session_state.get("aircraft")
+            mission_payload = simulator_component.build_mission_payload(aircraft=aircraft, zone=sel_zone, dt=dt, groundspeed=groundspeed, autostart=False, zoom=13)
+            st.session_state.last_mission = mission_payload
 
+        # Render the simulator component (client-side animation)
+        simulator_component.render_simulator(st.session_state.last_mission, height=640)
+
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        # Server-trigger start button
+        if st.button("Start Mission (Server-trigger)"):
+            st.session_state.last_mission["autostart"] = True
             simulator_component.render_simulator(st.session_state.last_mission, height=640)
+            st.session_state.last_mission["autostart"] = False
 
-            if st.button("Start Predefined Mission"):
-                st.session_state.last_mission["autostart"] = True
-                simulator_component.render_simulator(st.session_state.last_mission, height=640)
-                st.session_state.last_mission["autostart"] = False
+        # Save mission to session log
+        if st.button("Save Mission Log"):
+            st.session_state.mission_log.append(st.session_state.last_mission)
+            st.success("Mission saved to session log.")
 
-            if st.button("Save Predefined Mission Log"):
-                st.session_state.mission_log.append(st.session_state.last_mission)
-                st.success("Mission saved to session log.")
-    
-    # Tab 2: Dynamic placement
-    with tab2:
-        st.write("Place helicopter manually on map and predict landing zones dynamically.")
-        render_interactive_map()
-        
-        st.markdown("---")
-        
-        # If dynamic zone is selected, run simulation
-        if "selected_dynamic_zone" in st.session_state:
-            st.subheader("Dynamic Mission Configuration")
-            
-            col1, col2 = st.columns([1,1])
-            with col1:
-                dyn_start_alt = st.number_input("Start altitude (m) (Dynamic)", value=st.session_state.aircraft.get("altitude", 800), min_value=0, key="dyn_alt")
-                dyn_groundspeed = st.number_input("Groundspeed (m/s) (Dynamic)", value=st.session_state.aircraft.get("speed_mps",35.0), key="dyn_speed")
-            with col2:
-                dyn_dt = st.slider("Telemetry interval (s) (Dynamic)", 0.2, 2.0, 1.0, step=0.1, key="dyn_dt")
-            
-            if st.button("Prepare Dynamic Mission"):
-                aircraft = st.session_state.aircraft.copy()
-                aircraft["altitude"] = dyn_start_alt
-                aircraft["speed_mps"] = dyn_groundspeed
-                
-                mission_payload = simulator_component.build_mission_payload(
-                    aircraft=aircraft, 
-                    zone=st.session_state.selected_dynamic_zone, 
-                    dt=dyn_dt, 
-                    groundspeed=dyn_groundspeed, 
-                    autostart=False, 
-                    zoom=14
-                )
-                st.session_state.last_dynamic_mission = mission_payload
-                st.success("Dynamic mission prepared!")
-            
-            if "last_dynamic_mission" in st.session_state:
-                simulator_component.render_simulator(st.session_state.last_dynamic_mission, height=640)
-                
-                if st.button("Start Dynamic Mission"):
-                    st.session_state.last_dynamic_mission["autostart"] = True
-                    simulator_component.render_simulator(st.session_state.last_dynamic_mission, height=640)
-                    st.session_state.last_dynamic_mission["autostart"] = False
-                
-                if st.button("Save Dynamic Mission Log"):
-                    st.session_state.mission_log.append(st.session_state.last_dynamic_mission)
-                    st.success("Dynamic mission saved to session log.")
+        # Show brief mission stats
+        mp = st.session_state.last_mission or {}
+        st.markdown("### Mission Summary")
+        try:
+            st.metric("ETA (s)", f"{int(mp.get('travel_time',0))} s")
+            st.metric("Distance (m)", f"{int(mp.get('distance',0))} m")
+            st.metric("Start Alt (m)", f"{int(mp.get('telemetry',[{'alt':0}])[0]['alt'])}")
+        except Exception:
+            pass
+
+        st.markdown("### Saved Missions")
+        for i, m in enumerate(st.session_state.mission_log):
+            st.markdown(f"- Mission {i+1}: start={m['start']} dest={m['dest']} distance={int(m['distance'])} m")
+    else:
+        st.warning("Simulator component not found. Ensure simulator_component.py exists in the repo.")
+        st.write("Fallback: show static map and telemetry preview.")
+        # show static map via map_builder if available
+        try:
+            import folium
+            from streamlit_folium import st_folium
+            if map_builder and hasattr(map_builder, "build_map"):
+                m = map_builder.build_map(st.session_state.aircraft, st.session_state.zones)
+                st_folium(m, width=700, height=480)
+            else:
+                st.map(st.session_state.zones[["lat", "lon"]])
+        except Exception as e:
+            st.write("Map fallback:", e)
 
 def page_map():
     st.markdown(SECTION_HEADER("🗺️", "Map View", "INTERACTIVE MAP & ZONE DETAILS"), unsafe_allow_html=True)
@@ -624,11 +530,11 @@ def page_map():
 
 def page_advanced():
     """Enhanced Advanced section with proper UI and organized layout."""
-    st.markdown(SECTION_HEADER("🧠", "Advanced Features", "AI-POWERED INTELLIGENCE MODULES"), unsafe_allow_html=True)
+    st.markdown(SECTION_HEADER("🧠", "Advanced Patent Features", "AI-POWERED INTELLIGENCE MODULES"), unsafe_allow_html=True)
     
-    if not advanced_features:
+    if not advanced_patent_features:
         st.warning("🔌 Advanced features module not loaded")
-        st.info("Place `advanced_features.py` in your repository to unlock AI-powered intelligence.")
+        st.info("Place `advanced_patent_features.py` in your repository to unlock AI-powered intelligence.")
         st.markdown("---")
         return
 
@@ -716,8 +622,8 @@ def page_advanced():
             confidence_threshold = st.slider("Confidence threshold (%)", 50, 100, 85, help="Minimum confidence for predictions")
         
         try:
-            if hasattr(advanced_features, "TrajectoryPredictor"):
-                tp = advanced_features.TrajectoryPredictor
+            if hasattr(advanced_patent_features, "TrajectoryPredictor"):
+                tp = advanced_patent_features.TrajectoryPredictor
                 pred = tp.predict_trajectory(
                     st.session_state.aircraft, 
                     st.session_state.zones, 
@@ -778,8 +684,8 @@ def page_advanced():
         st.markdown("---")
         
         try:
-            if hasattr(advanced_features, "DynamicRiskMatrix"):
-                drm = advanced_features.DynamicRiskMatrix
+            if hasattr(advanced_patent_features, "DynamicRiskMatrix"):
+                drm = advanced_patent_features.DynamicRiskMatrix
                 risk_matrix = drm.calculate_risk_matrix(selected_zone, st.session_state.aircraft)
                 
                 # Risk summary cards
@@ -868,8 +774,8 @@ def page_advanced():
         health_refresh = st.button("🔄 Refresh Health Analysis", help="Re-run comprehensive system diagnostics")
         
         try:
-            if hasattr(advanced_features, "PredictiveFailureAnalysis"):
-                pfa = advanced_features.PredictiveFailureAnalysis
+            if hasattr(advanced_patent_features, "PredictiveFailureAnalysis"):
+                pfa = advanced_patent_features.PredictiveFailureAnalysis
                 health = pfa.assess_aircraft_health(st.session_state.aircraft)
                 
                 # Overall health gauge
@@ -933,7 +839,7 @@ def page_settings():
     st.text_input("Owner / Project name", value="Your Name / Project")
     if st.button("Reset Session"):
         st.session_state.clear()
-        st.rerun()
+        st.experimental_rerun()
 
 # -----------------------------
 # Main entry
@@ -949,14 +855,6 @@ def init_session_state():
         st.session_state.mission_log = []
     if "last_mission" not in st.session_state:
         st.session_state.last_mission = None
-    if "last_dynamic_mission" not in st.session_state:
-        st.session_state.last_dynamic_mission = None
-    if "predicted_landing_zones" not in st.session_state:
-        st.session_state.predicted_landing_zones = None
-    if "selected_dynamic_zone" not in st.session_state:
-        st.session_state.selected_dynamic_zone = None
-    if "need_zone_update" not in st.session_state:
-        st.session_state.need_zone_update = False
 
 def main():
     st.set_page_config(page_title="ELZF-AI — Emergency Landing Simulator", layout="wide", initial_sidebar_state="expanded")
@@ -979,14 +877,11 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.subheader("Aircraft")
     st.sidebar.write(f"Type: {st.session_state.aircraft.get('type', 'H145')}")
-    st.sidebar.write(f"Lat: {st.session_state.aircraft.get('latitude', 0):.5f}")
-    st.sidebar.write(f"Lon: {st.session_state.aircraft.get('longitude', 0):.5f}")
-    st.sidebar.write(f"Alt: {st.session_state.aircraft.get('altitude', 0)} m")
     if st.sidebar.button("Play Alert Tone"):
         AircraftSoundSystem.play_sound_streamlit("alert")
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("ELZF-AI — Dynamic helicopter placement enabled on Simulator page")
+    st.sidebar.caption("ELZF-AI — keep simulator page open to run missions")
 
     # Render selected page
     if page == "Home":
@@ -1008,7 +903,7 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.subheader("Mission Log")
     for i, m in enumerate(st.session_state.mission_log[-6:][::-1]):
-        t = f"Mission {i+1}: distance={int(m['distance'])} m"
+        t = f"Mission {i+1}: start={m['start']} dest={m['dest']} distance={int(m['distance'])} m"
         st.sidebar.write(t)
 
 if __name__ == "__main__":
