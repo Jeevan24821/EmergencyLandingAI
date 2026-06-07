@@ -7,6 +7,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from typing import Dict, List
+from simulator_component import (
+    build_mission_payload,
+    render_simulator
+)
 
 # ═══════════════════════════════════════════════════════════════
 # 1. PREDICTIVE TRAJECTORY ANALYSIS
